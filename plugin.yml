@@ -1,0 +1,32 @@
+#name, main, version and api are required
+name: WorldEditor
+main: plugin\WorldEditor
+version: "1.0"
+api: 1.0.0
+
+author: 우유맛비누
+commands:
+ /po1:
+  usage: false
+  permission: worldedit.command.setpos1
+ /pos2:
+  usage: false
+  permission: worldedit.command.setpos2
+ /set:
+  usage: false
+  permission: worldedit.command.setblock
+ /replace:
+  usage: false
+  permission: worldedit.command.replaceblock
+ /undo:
+  usage: false
+  permission: worldedit.command.undoblock
+ /redo:
+  usage: false
+  permission: worldedit.command.redoblock
+ 
+
+permissions:
+ worldedit.command.*:
+  default: op
+  description: false
