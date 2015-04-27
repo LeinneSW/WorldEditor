@@ -338,10 +338,10 @@ class WorldEditor extends PluginBase implements Listener{
                     if(!isset(self::$copy[$player->getName()])) self::$copy[$player->getName()] = [];
                     $id = $chunk->getBlockId($x & 0x0f, $y & 0x7f, $z & 0x0f);
                     $meta = $chunk->getBlockData($x & 0x0f, $y & 0x7f, $z & 0x0f);
-                    if($id !== 0){
+                    if($id !== Item::AIR){
                         ++$count;
                         $block = Block::get($id, $meta);
-                        $block->add($x - $startX, $y - $startY, $z - $startZ);
+                        $block->setComponents($x - $startX, $y - $startY, $z - $startZ);
                         $block->level = $player->getLevel();
                         self::$copy[$player->getName()][] = $block;
                     }
@@ -370,24 +370,22 @@ class WorldEditor extends PluginBase implements Listener{
         }
     }
 
-    public function pasteBlock(Position $pos, Player $player = null){
+    public function pasteBlock(Vector3 $pos, Player $player = null){
         $count = 0;
         foreach(self::$copy[$player->getName()] as $key => $block){
             /** @var Block $block */
-            if($count <= $this->getData("limit-block", 125)){
+            if($count < $this->getData("limit-block", 125)){
                 $p = $block->add($pos);
                 $chunk = $block->getLevel()->getChunk($p->x >> 4, $p->z >> 4, true);
-                $id = $chunk->getBlockId($p->x & 0x0f, $p->y & 0x7f, $p->z & 0x0f);
-                $meta = $chunk->getBlockData($p->x & 0x0f, $p->y & 0x7f, $p->z & 0x0f);
                 if($block->getId() !== Item::AIR){
                     ++$count;
-                    $tar = Block::get($id, $meta);
+                    $tar = Block::get($chunk->getBlockId($p->x & 0x0f, $p->y & 0x7f, $p->z & 0x0f), $chunk->getBlockData($p->x & 0x0f, $p->y & 0x7f, $p->z & 0x0f));
                     $tar->level = $block->getLevel();
-                    $this->saveUndo($block, $p);
+                    $this->saveUndo($tar, $p);
                     $tile = $block->getLevel()->getTile($p);
                     if($tile instanceof Chest) $tile->unpair();
                     if($tile instanceof Tile) $tile->close();
-                    $pos->getLevel()->setBlock($p, $block, false, false);
+                    $block->getLevel()->setBlock($p, $block, false, false);
                 }
                 unset(self::$copy[$player->getName()][$key]);
             }else{
@@ -398,7 +396,7 @@ class WorldEditor extends PluginBase implements Listener{
         if($player !== null) $player->sendMessage("[WorldEditor]모든 블럭을 붙여넣었어요");
         if($this->getData("debug", false)){
             $name = $player === null ? "" : "{$player->getName()}님이 ";
-            self::core()->getLogger()->info("[WorldEditor]}$name 블럭을 붙여넣었어요");
+            self::core()->getLogger()->info("[WorldEditor]{$name}블럭을 붙여넣었어요");
         }
     }
 
@@ -553,7 +551,7 @@ class WorldEditor extends PluginBase implements Listener{
                 $output .= "블럭 붙여넣기를 시작했어요";
                 if($this->getData("debug", false)) self::core()->getLogger()->info("[WorldEditor]{$i->getName()}님이 블럭 붙여넣기를 시작했어요");
                 $callback = "pasteBlock";
-                $params = [$i->getPosition(), $i];
+                $params = [$i->floor(), $i];
                 break;
             case "/cut":
                 $block = self::$pos[$i->getName()];
