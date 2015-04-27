@@ -335,11 +335,11 @@ class WorldEditor extends PluginBase implements Listener{
             if($count < $this->getData("limit-block", 125) * 6){
                 $chunk = $player->getLevel()->getChunk($x >> 4, $z >> 4, true);
                 if($chunk !== null){
-                    ++$count;
                     if(!isset(self::$copy[$player->getName()])) self::$copy[$player->getName()] = [];
                     $id = $chunk->getBlockId($x & 0x0f, $y & 0x7f, $z & 0x0f);
                     $meta = $chunk->getBlockData($x & 0x0f, $y & 0x7f, $z & 0x0f);
                     if($id !== 0){
+                        ++$count;
                         $block = Block::get($id, $meta);
                         $block->add($x - $startX, $y - $startY, $z - $startZ);
                         $block->level = $player->getLevel();
@@ -374,12 +374,13 @@ class WorldEditor extends PluginBase implements Listener{
         $count = 0;
         foreach(self::$copy[$player->getName()] as $key => $block){
             /** @var Block $block */
-            if(++$count <= $this->getData("limit-block", 125)){
+            if($count <= $this->getData("limit-block", 125)){
                 $p = $block->add($pos);
                 $chunk = $block->getLevel()->getChunk($p->x >> 4, $p->z >> 4, true);
                 $id = $chunk->getBlockId($p->x & 0x0f, $p->y & 0x7f, $p->z & 0x0f);
                 $meta = $chunk->getBlockData($p->x & 0x0f, $p->y & 0x7f, $p->z & 0x0f);
                 if($block->getId() !== Item::AIR){
+                    ++$count;
                     $tar = Block::get($id, $meta);
                     $tar->level = $block->getLevel();
                     $this->saveUndo($block, $p);
