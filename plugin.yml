@@ -6,7 +6,7 @@ api: 1.0.0
 
 author: 우유맛비누
 commands:
- /po1:
+ /pos1:
   usage: false
   permission: worldedit.command.setpos1
  /pos2:
