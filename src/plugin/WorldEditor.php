@@ -44,7 +44,7 @@ class WorldEditor extends PluginBase implements Listener{
         }else{
             $this->data = [
                 "tool-id" => Item::IRON_HOE,
-                "limit-block" => 160,
+                "limit-block" => 125,
                 "debug" => false
             ];
             if(!is_dir($path = self::core()->getDataPath() . "plugins/WorldEditor/")) mkdir($path);
@@ -134,7 +134,7 @@ class WorldEditor extends PluginBase implements Listener{
             $z = $z[0];
         }
         while(true){
-            if($count < $this->getData("limit-block", 160)){
+            if($count < $this->getData("limit-block", 125)){
                 $chunk = $block->getLevel()->getChunk($x >> 4, $z >> 4, true);
                 if($chunk !== null){
                     $id = $chunk->getBlockId($x & 0x0f, $y & 0x7f, $z & 0x0f);
@@ -186,7 +186,7 @@ class WorldEditor extends PluginBase implements Listener{
             $z = $z[0];
         }
         while(true){
-            if($count < $this->getData("limit-block", 160)){
+            if($count < $this->getData("limit-block", 125)){
                 $chunk = $block->getLevel()->getChunk($x >> 4, $z >> 4, true);
                 if($chunk !== null){
                     $id = $chunk->getBlockId($x & 0x0f, $y & 0x7f, $z & 0x0f);
@@ -236,7 +236,7 @@ class WorldEditor extends PluginBase implements Listener{
             $z = $z[0];
         }
         while(true){
-            if($count < $this->getData("limit-block", 160)){
+            if($count < $this->getData("limit-block", 125)){
                 if(isset(self::$undo["$x:$y:$z"])){
                     ++$count;
                     /** @var Block $block */
@@ -284,7 +284,7 @@ class WorldEditor extends PluginBase implements Listener{
             $z = $z[0];
         }
         while(true){
-            if($count < $this->getData("limit-block", 160)){
+            if($count < $this->getData("limit-block", 125)){
                 if(isset(self::$redo["$x:$y:$z"])){
                     ++$count;
                     /** @var Block $block */
@@ -332,16 +332,19 @@ class WorldEditor extends PluginBase implements Listener{
             $z = $z[0];
         }
         while(true){
-            if($count < $this->getData("limit-block", 160) * 5){
+            if($count < $this->getData("limit-block", 125) * 6){
                 $chunk = $player->getLevel()->getChunk($x >> 4, $z >> 4, true);
                 if($chunk !== null){
                     ++$count;
                     if(!isset(self::$copy[$player->getName()])) self::$copy[$player->getName()] = [];
-                    self::$copy[$player->getName()][] = Block::get(
-                        $chunk->getBlockId($x & 0x0f, $y & 0x7f, $z & 0x0f),
-                        $chunk->getBlockData($x & 0x0f, $y & 0x7f, $z & 0x0f),
-                        new Position($x - $startX, $y - $startY, $z - $startZ, $player->getLevel())
-                    );
+                    $id = $chunk->getBlockId($x & 0x0f, $y & 0x7f, $z & 0x0f);
+                    $meta = $chunk->getBlockData($x & 0x0f, $y & 0x7f, $z & 0x0f);
+                    if($id !== 0){
+                        $block = Block::get($id, $meta);
+                        $block->add($x - $startX, $y - $startY, $z - $startZ);
+                        $block->level = $player->getLevel();
+                        self::$copy[$player->getName()][] = $block;
+                    }
                 }
                 if($z < $endZ) $z++;
                 else{
@@ -371,12 +374,20 @@ class WorldEditor extends PluginBase implements Listener{
         $count = 0;
         foreach(self::$copy[$player->getName()] as $key => $block){
             /** @var Block $block */
-            if(++$count <= $this->getData("limit-block", 160)){
-                $this->saveUndo($block, $p = $block->add($pos));
-                $tile = $block->getLevel()->getTile($p);
-                if($tile instanceof Chest) $tile->unpair();
-                if($tile instanceof Tile) $tile->close();
-                $pos->getLevel()->setBlock($p, $block, false, false);
+            if(++$count <= $this->getData("limit-block", 125)){
+                $p = $block->add($pos);
+                $chunk = $block->getLevel()->getChunk($p->x >> 4, $p->z >> 4, true);
+                $id = $chunk->getBlockId($p->x & 0x0f, $p->y & 0x7f, $p->z & 0x0f);
+                $meta = $chunk->getBlockData($p->x & 0x0f, $p->y & 0x7f, $p->z & 0x0f);
+                if($block->getId() !== Item::AIR){
+                    $tar = Block::get($id, $meta);
+                    $tar->level = $block->getLevel();
+                    $this->saveUndo($block, $p);
+                    $tile = $block->getLevel()->getTile($p);
+                    if($tile instanceof Chest) $tile->unpair();
+                    if($tile instanceof Tile) $tile->close();
+                    $pos->getLevel()->setBlock($p, $block, false, false);
+                }
                 unset(self::$copy[$player->getName()][$key]);
             }else{
                 self::core()->getScheduler()->scheduleDelayedTask(new WorldEditorTask([$this, "pasteBlock"], [$pos, $player], $this), 1);
@@ -404,7 +415,7 @@ class WorldEditor extends PluginBase implements Listener{
             $z = $z[0];
         }
         while(true){
-            if($count < $this->getData("limit-block", 160)){
+            if($count < $this->getData("limit-block", 125)){
                 $chunk = $player->getLevel()->getChunk($x >> 4, $z >> 4, true);
                 if($chunk !== null){
                     ++$count;
