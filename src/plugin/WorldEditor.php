@@ -136,7 +136,7 @@ class WorldEditor extends PluginBase implements Listener{
         if($pos instanceof Position && $pos->getLevel() !== null){
             $level = $pos->getLevel();
         }elseif($block->getLevel() !== null){
-            $level = $pos->getLevel();
+            $level = $block->getLevel();
         }elseif($level === null){
             return;
         }
@@ -167,9 +167,7 @@ class WorldEditor extends PluginBase implements Listener{
                     $meta = $chunk->getBlockData($x & 0x0f, $y & 0x7f, $z & 0x0f);
                     if($id !== $block->getId() or $meta !== $block->getDamage()){
                         ++$count;
-                        $undo = Block::get($id, $meta);
-                        $undo->level = $block->getLevel();
-                        $this->saveUndo($undo, $pos = new Vector3($x, $y, $z));
+                        $this->saveUndo($id, $meta, $pos = new Vector3($x, $y, $z));
                         $this->set($block, $pos);
                     }
                 }
@@ -347,7 +345,7 @@ class WorldEditor extends PluginBase implements Listener{
         }
         while(true){
             $chunk = $player->getLevel()->getChunk($x >> 4, $z >> 4, true);
-            if($chunk !== null && $this->saveCopy($chunk->getBlockId($x & 0x0f, $y & 0x7f, $z & 0x0f), $chunk->getBlockData($x & 0x0f, $y & 0x7f, $z & 0x0f), $player, new Vector3($x - $startX, $y - $startY, $z - $startZ))) ++$count;
+            if($chunk !== null && $this->saveCopy($player->getLevel()->getBlockIdAt($x, $y, $z), $player->getLevel()->getBlockDataAt($x, $y, $z), $player, new Vector3($x - $startX, $y - $startY, $z - $startZ))) ++$count;
             if($z < $endZ) $z++;
             else{
                 $z = $startZ;
