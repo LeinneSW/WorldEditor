@@ -221,7 +221,7 @@ class WorldEditor extends PluginBase implements Listener{
                     $meta = $chunk->getBlockData($x & 0x0f, $y & 0x7f, $z & 0x0f);
                     if($id === $block->getId() or $meta === $block->getDamage()){
                         ++$count;
-                        $this->saveUndo(Block::get($id, $meta), $pos = new Position($x, $y, $z, $block->getLevel()));
+                        $this->saveUndo($block, $pos = new Vector3($x, $y, $z));
                         $this->set($target, $pos);
                     }
                 }
