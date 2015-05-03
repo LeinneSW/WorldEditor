@@ -113,11 +113,18 @@ class WorldEditor extends PluginBase implements Listener{
     /**
      * @param Block $block
      * @param Vector3 $pos
+     * @param Level $level
      *
      * @return bool
      */
-    public function saveUndo(Block $block, Vector3 $pos = null){
-        if($block->getLevel() === null) return false;
+    public function saveUndo(Block $block, Vector3 $pos = null, Level $level = null){
+        if($pos instanceof Position && $pos->getLevel() !== null){
+            $block->level = $pos->getLevel();
+        }elseif($level !== null){
+            $block->level = $level;
+        }elseif($block->getLevel() === null){
+            return false;
+        }
         if($pos !== null) $block->setComponents($pos->x, $pos->y, $pos->z);
         $key = "{$block->x}:{$block->y}:{$block->z}";
         if(!isset(self::$undo[$key])) self::$undo[$key] = [];
@@ -167,7 +174,7 @@ class WorldEditor extends PluginBase implements Listener{
                     $meta = $chunk->getBlockData($x & 0x0f, $y & 0x7f, $z & 0x0f);
                     if($id !== $block->getId() or $meta !== $block->getDamage()){
                         ++$count;
-                        $this->saveUndo($id, $meta, $pos = new Vector3($x, $y, $z));
+                        $this->saveUndo(Block::get($id, $meta), $pos = new Position($x, $y, $z, $block->getLevel()));
                         $this->set($block, $pos);
                     }
                 }
@@ -214,7 +221,7 @@ class WorldEditor extends PluginBase implements Listener{
                     $meta = $chunk->getBlockData($x & 0x0f, $y & 0x7f, $z & 0x0f);
                     if($id === $block->getId() or $meta === $block->getDamage()){
                         ++$count;
-                        $this->saveUndo($block, $pos = new Vector3($x, $y, $z));
+                        $this->saveUndo(Block::get($id, $meta), $pos = new Position($x, $y, $z, $block->getLevel()));
                         $this->set($target, $pos);
                     }
                 }
@@ -374,8 +381,7 @@ class WorldEditor extends PluginBase implements Listener{
                         $player->getLevel()->getBlockIdAt($block->x, $block->y, $block->z),
                         $player->getLevel()->getBlockDataAt($block->x, $block->y, $block->z)
                     );
-                    $k->level = $player->getLevel();
-                    $this->saveUndo($k, $block);
+                    $this->saveUndo($k, $block, $player->getLevel());
                     $this->set($block, $block, $player->getLevel());
                 }else{
                     break;
