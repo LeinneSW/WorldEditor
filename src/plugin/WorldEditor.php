@@ -191,7 +191,7 @@ class WorldEditor extends PluginBase implements Listener{
         if($player !== null) $player->sendMessage("[WorldEditor]모든 블럭을 설정했어요");
         if($this->getData("debug", false)){
             $name = $player === null ? "" : "{$player->getName()}님이 ";
-            self::core()->getLogger()->info("[WorldEditor]{$name}블럭설정을 끝냇어요");
+            self::core()->getLogger()->info("[WorldEditor]{$name}블럭설정을 끝냈어요");
         }
     }
 
@@ -238,7 +238,7 @@ class WorldEditor extends PluginBase implements Listener{
         if($player !== null) $player->sendMessage("[WorldEditor]모든 블럭을 변경했어요");
         if($this->getData("debug", false)){
             $name = $player === null ? "" : "{$player->getName()}님이 ";
-            self::core()->getLogger()->info("[WorldEditor]{$name}블럭변경을 끝냇어요");
+            self::core()->getLogger()->info("[WorldEditor]{$name}블럭변경을 끝냈어요");
         }
     }
 
@@ -414,7 +414,6 @@ class WorldEditor extends PluginBase implements Listener{
                         new Position($x - $startX, $y - $startY, $z - $startZ, $player->getLevel())
                     );
                     if(!isset(self::$copy[$player->getName()])) self::$copy[$player->getName()] = [];
-                    self::$copy[$player->getName()][] = $block;
                     $this->saveCopy($block->getId(), $block->getDamage(), $player, new Position($x - $startX, $y - $startY, $z - $startZ, $player->getLevel()));
                     $this->saveUndo($block);
                     $this->set(new Air(), $block);
