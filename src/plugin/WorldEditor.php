@@ -59,7 +59,6 @@ class WorldEditor extends PluginBase implements Listener{
     }
 
     public function onDisable(){
-        file_put_contents(self::core()->getDataPath() . "plugins/WorldEditor/data.yml", yaml_emit($this->data, YAML_UTF8_ENCODING));
         file_put_contents(self::core()->getDataPath() . "plugins/WorldEditor/copy.yml", yaml_emit(self::$copy, YAML_UTF8_ENCODING));
     }
 
@@ -70,27 +69,23 @@ class WorldEditor extends PluginBase implements Listener{
      * @return int|bool
      */
     public function getData($data, $default = false){
-        if(!isset($this->data[$data])) $this->data[$data] = $default;
-        return $this->data[$data];
+        return !isset($this->data[$data]) ? $this->data[$data] : $default;
     }
 
     public function PlayerInteractEvent(PlayerInteractEvent $ev){
         $item = $ev->getItem();
         $block = $ev->getBlock();
         $player = $ev->getPlayer();
-        if(
-            in_array($ev->getAction(), [PlayerInteractEvent::RIGHT_CLICK_AIR, PlayerInteractEvent::RIGHT_CLICK_BLOCK])
-            && $ev->getFace() !== 255
-        ){
-            if($player->isOp() && $item->getID() === $this->getData("tool-id", Item::IRON_HOE)){
+        if($ev->getAction() == PlayerInteractEvent::RIGHT_CLICK_BLOCK && $ev->getFace() !== 255){
+            if($player->hasPermission("worldedit.command.setpos2") && $item->getID() == $this->getData("tool-id", Item::IRON_HOE)){
                 $player->sendMessage("[WorldEditor]Pos2 지점을 선택했어요 ({$block->x}, {$block->y}, {$block->z})");
                 self::$pos[$player->getName()][1] = $block->floor();
                 $ev->setCancelled();
                 return;
             }
         }elseif(
-            in_array($ev->getAction(), [PlayerInteractEvent::LEFT_CLICK_AIR, PlayerInteractEvent::LEFT_CLICK_BLOCK])
-            && $player->isOp() && $item->getID() === $this->getData("tool-id", Item::IRON_HOE)
+            $ev->getAction() == PlayerInteractEvent::LEFT_CLICK_AIR
+            && $player->hasPermission("worldedit.command.setpos1") && $item->getID() == $this->getData("tool-id", Item::IRON_HOE)
         ){
             $player->sendMessage("[WorldEditor]Pos1 지점을 선택했어요 ({$block->x}, {$block->y}, {$block->z})");
             self::$pos[$player->getName()][0] = $block->floor();
@@ -102,7 +97,7 @@ class WorldEditor extends PluginBase implements Listener{
         $item = $ev->getItem();
         $block = $ev->getBlock();
         $player = $ev->getPlayer();
-        if($player->isOp() && $item->getID() === $this->getData("tool-id", Item::IRON_HOE)){
+        if($player->hasPermission("worldedit.command.setpos1") && $item->getID() === $this->getData("tool-id", Item::IRON_HOE)){
             $player->sendMessage("[WorldEditor]Pos1 지점을 선택했어요 ({$block->x}, {$block->y}, {$block->z})");
             self::$pos[$player->getName()][0] = $block->floor();
             $ev->setCancelled();
@@ -219,7 +214,7 @@ class WorldEditor extends PluginBase implements Listener{
                 if($chunk !== null){
                     $id = $chunk->getBlockId($x & 0x0f, $y & 0x7f, $z & 0x0f);
                     $meta = $chunk->getBlockData($x & 0x0f, $y & 0x7f, $z & 0x0f);
-                    if($id === $block->getId() or $meta === $block->getDamage()){
+                    if($id === $block->getId() && $meta === $block->getDamage()){
                         ++$count;
                         $this->saveUndo($block, $pos = new Vector3($x, $y, $z));
                         $this->set($target, $pos);
@@ -591,13 +586,6 @@ class WorldEditorTask extends PluginTask{
         $this->callable = $callable;
         $this->owner = $owner;
         $this->args = $args;
-    }
-
-    /**
-     * @return callable
-     */
-    public function getCallable(){
-        return $this->callable;
     }
 
     public function onRun($currentTicks){
