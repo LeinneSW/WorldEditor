@@ -1,14 +1,13 @@
 <?php
 
-namespace plugin;
+namespace milk\worldeditor;
 
+use milk\worldeditor\task\WorldEditorTask;
 use pocketmine\block\Air;
 use pocketmine\block\Block;
 use pocketmine\level\Level;
 use pocketmine\level\Position;
 use pocketmine\Player;
-use pocketmine\plugin\Plugin;
-use pocketmine\scheduler\PluginTask;
 use pocketmine\Server;
 use pocketmine\item\Item;
 use pocketmine\math\Vector3;
@@ -60,6 +59,12 @@ class WorldEditor extends PluginBase implements Listener{
 
     public function onDisable(){
         file_put_contents(self::core()->getDataPath() . "plugins/WorldEditor/copy.yml", yaml_emit(self::$copy, YAML_UTF8_ENCODING));
+    }
+
+    public function debugInfo($message){
+        if($this->getData("debug", false)){
+            self::core()->getLogger()->info(TextFormat::GOLD . $message);
+        }
     }
 
     /**
@@ -120,16 +125,25 @@ class WorldEditor extends PluginBase implements Listener{
         }elseif($block->getLevel() === null){
             return false;
         }
-        if($pos !== null) $block->setComponents($pos->x, $pos->y, $pos->z);
+        if($pos !== null){
+            $block->setComponents($pos->x, $pos->y, $pos->z);
+        }
         $key = "{$block->x}:{$block->y}:{$block->z}";
-        if(!isset(self::$undo[$key])) self::$undo[$key] = [];
+        if(!isset(self::$undo[$key])){
+            self::$undo[$key] = [];
+        }
         self::$undo[$key][] = $block;
         return true;
     }
 
     public function saveCopy($id, $meta, Player $player, Vector3 $pos){
-        if($id === Item::AIR) return false;
-        if(!isset(self::$copy[$player->getName()])) self::$copy[$player->getName()] = [];
+        if($id === Item::AIR){
+            return false;
+        }
+
+        if(!isset(self::$copy[$player->getName()])){
+            self::$copy[$player->getName()] = [];
+        }
         self::$copy[$player->getName()][] = "$id, $meta, $pos->x, $pos->y, $pos->z";
         return true;
     }
@@ -143,8 +157,12 @@ class WorldEditor extends PluginBase implements Listener{
             return;
         }
         $tile = $level->getTile($pos);
-        if($tile instanceof Chest) $tile->unpair();
-        if($tile instanceof Tile) $tile->close();
+        if($tile instanceof Chest){
+            $tile->unpair();
+        }
+        if($tile instanceof Tile){
+            $tile->close();
+        }
         $level->setBlock($pos, $block, false, false);
     }
 
@@ -188,11 +206,10 @@ class WorldEditor extends PluginBase implements Listener{
                 return;
             }
         }
-        if($player !== null) $player->sendMessage("[WorldEditor]모든 블럭을 설정했어요");
-        if($this->getData("debug", false)){
-            $name = $player === null ? "" : "{$player->getName()}님이 ";
-            self::core()->getLogger()->info("[WorldEditor]{$name}블럭설정을 끝냈어요");
+        if($player !== null){
+            $player->sendMessage("[WorldEditor]모든 블럭을 설정했어요");
         }
+        $this->debugInfo(($player === null ? "" : "{$player->getName()}님이 ") . "블럭설정을 끝냈어요");
     }
 
     public function replaceBlock($startX, $startY, $startZ, $endX, $endY, $endZ, Block $block, Block $target, Player $player = null){
@@ -235,11 +252,10 @@ class WorldEditor extends PluginBase implements Listener{
                 return;
             }
         }
-        if($player !== null) $player->sendMessage("[WorldEditor]모든 블럭을 변경했어요");
-        if($this->getData("debug", false)){
-            $name = $player === null ? "" : "{$player->getName()}님이 ";
-            self::core()->getLogger()->info("[WorldEditor]{$name}블럭변경을 끝냈어요");
+        if($player !== null){
+            $player->sendMessage("[WorldEditor]모든 블럭을 변경했어요");
         }
+        $this->debugInfo(($player === null ? "" : "{$player->getName()}님이 ") . "블럭변경을 끝냈어요");
     }
 
     public function undoBlock($startX, $startY, $startZ, $endX, $endY, $endZ, Player $player = null){
@@ -263,7 +279,9 @@ class WorldEditor extends PluginBase implements Listener{
                     $block = array_pop(self::$undo["$x:$y:$z"]);
                     self::$redo["$x:$y:$z"][] = $block;
                     $this->set($block, new Vector3($x, $y, $z));
-                    if(count(self::$undo["$x:$y:$z"]) === 0) unset(self::$undo["$x:$y:$z"]);
+                    if(count(self::$undo["$x:$y:$z"]) === 0){
+                        unset(self::$undo["$x:$y:$z"]);
+                    }
                 }
                 if($z < $endZ) $z++;
                 else{
@@ -280,11 +298,10 @@ class WorldEditor extends PluginBase implements Listener{
                 return;
             }
         }
-        if($player !== null) $player->sendMessage("[WorldEditor]모든 블럭을 되돌렸어요");
-        if($this->getData("debug", false)){
-            $name = $player === null ? "" : "{$player->getName()}님이 ";
-            self::core()->getLogger()->info("[WorldEditor]{$name}블럭 복구를 끝냈어요");
+        if($player !== null){
+            $player->sendMessage("[WorldEditor]모든 블럭을 되돌렸어요");
         }
+        $this->debugInfo(($player === null ? "" : "{$player->getName()}님이 ") . "블럭 복구를 끝냈어요");
     }
 
     public function redoBlock($startX, $startY, $startZ, $endX, $endY, $endZ, Player $player = null){
@@ -325,11 +342,10 @@ class WorldEditor extends PluginBase implements Listener{
                 return;
             }
         }
-        if($player !== null) $player->sendMessage("[WorldEditor]모든 블럭을 다시 되돌렸어요");
-        if($this->getData("debug", false)){
-            $name = $player === null ? "" : "{$player->getName()}님이 ";
-            self::core()->getLogger()->info("[WorldEditor]{$name}복구한 블럭을 모두 되돌렸어요");
+        if($player !== null){
+            $player->sendMessage("[WorldEditor]모든 블럭을 다시 되돌렸어요");
         }
+        $this->debugInfo(($player === null ? "" : "{$player->getName()}님이 ") . "복구한 블럭을 모두 되돌렸어요");
     }
 
     public function copyBlock($startX, $startY, $startZ, $endX, $endY, $endZ, Player $player){
@@ -360,7 +376,7 @@ class WorldEditor extends PluginBase implements Listener{
             }
         }
         $player->sendMessage("[WorldEditor]모든 블럭을 복사했어요");
-        if($this->getData("debug", false)) self::core()->getLogger()->info("[WorldEditor]{$player->getName()}님이 블럭을 복사했어요");
+        $this->debugInfo("{$player->getName()}님이 블럭을 복사했어요");
     }
 
     public function pasteBlock(Vector3 $pos, Player $player){
@@ -387,7 +403,7 @@ class WorldEditor extends PluginBase implements Listener{
             }
         }
         $player->sendMessage("[WorldEditor]모든 블럭을 붙여넣었어요");
-        if($this->getData("debug", false)) self::core()->getLogger()->info("[WorldEditor]{$player->getName()}님이 블럭을 모두 붙여넣었어요");
+        $this->debugInfo("{$player->getName()}님이 블럭을 모두 붙여넣었어요");
     }
 
     public function cutBlock($startX, $startY, $startZ, $endX, $endY, $endZ, Player $player){
@@ -434,12 +450,15 @@ class WorldEditor extends PluginBase implements Listener{
             }
         }
         $player->sendMessage("[WorldEditor]모든 블럭을 복사했어요");
-        if($this->getData("debug", false)) self::core()->getLogger()->info("[WorldEditor]{$player->getName()}님이 블럭을 모두 복사했어요");
+        $this->debugInfo("{$player->getName()}님이 블럭을 모두 복사했어요");
     }
 
     public function onCommand(CommandSender $i, Command $cmd, $label, array $sub){
+        if(!$i instanceof Player){
+            return true;
+        }
+
         $output = "[WorldEditor]";
-        if(!$i instanceof Player) return true;
         switch($cmd->getName()){
             case "/pos1":
                 $pos = $i->floor();
@@ -469,9 +488,10 @@ class WorldEditor extends PluginBase implements Listener{
                 $startY = min($block[0]->y, $block[1]->y);
                 $startZ = min($block[0]->z, $block[1]->z);
                 $output .= "블럭 설정을 시작했어요";
-                if($this->getData("debug", false)) self::core()->getLogger()->info("[WorldEditor]{$i->getName()}님이 블럭설정을 시작했어요");
                 $callback = "setBlock";
                 $params = [$startX, $startY, $startZ, $endX, $endY, $endZ, Block::get($set[0], isset($set[1]) ? $set[1] : 0, $i->getPosition()), $i];
+
+                $this->debugInfo("{$i->getName()}님이 블럭설정을 시작했어요");
                 break;
             case "/replace":
                 if(!isset($sub[0]) or !isset($sub[1])){
@@ -492,9 +512,10 @@ class WorldEditor extends PluginBase implements Listener{
                 $startY = min($block[0]->y, $block[1]->y);
                 $startZ = min($block[0]->z, $block[1]->z);
                 $output .= "블럭 변경을 시작했어요";
-                if($this->getData("debug", false)) self::core()->getLogger()->info("[WorldEditor]{$i->getName()}님이 블럭변경을 시작했어요");
                 $callback = "replaceBlock";
                 $params = [$startX, $startY, $startZ, $endX, $endY, $endZ, Block::get($get[0], isset($get[1]) ? $get[1] : 0, $i->getPosition()), Block::get($set[0], isset($set[1]) ? $set[1] : 0, $i->getPosition()), $i];
+
+                $this->debugInfo("{$i->getName()}님이 블럭변경을 시작했어요");
                 break;
             case "/undo":
                 if(!isset(self::$pos[$i->getName()]) or count(self::$pos[$i->getName()]) < 2){
@@ -509,9 +530,10 @@ class WorldEditor extends PluginBase implements Listener{
                 $startY = min($block[0]->y, $block[1]->y);
                 $startZ = min($block[0]->z, $block[1]->z);
                 $output .= "블럭을 되돌리는 중입니다";
-                if($this->getData("debug", false)) self::core()->getLogger()->info("[WorldEditor]{$i->getName()}님이 블럭을 복구하기 시작했어요");
                 $callback = "undoBlock";
                 $params = [$startX, $startY, $startZ, $endX, $endY, $endZ, $i];
+
+                $this->debugInfo("{$i->getName()}님이 블럭을 복구하기 시작했어요");
                 break;
             case "/redo":
                 if(!isset(self::$pos[$i->getName()]) or count(self::$pos[$i->getName()]) < 2){
@@ -526,9 +548,10 @@ class WorldEditor extends PluginBase implements Listener{
                 $startY = min($block[0]->y, $block[1]->y);
                 $startZ = min($block[0]->z, $block[1]->z);
                 $output .= "블럭 설정을 시작했어요";
-                if($this->getData("debug", false)) self::core()->getLogger()->info("[WorldEditor]{$i->getName()}님이 복구한 블럭을 되돌리기 시작했어요");
                 $callback = "redoBlock";
                 $params = [$startX, $startY, $startZ, $endX, $endY, $endZ, $i];
+
+                $this->debugInfo("{$i->getName()}님이 복구한 블럭을 되돌리기 시작했어요");
                 break;
             case "/copy":
                 if(!isset(self::$pos[$i->getName()]) or count(self::$pos[$i->getName()]) < 2){
@@ -543,14 +566,17 @@ class WorldEditor extends PluginBase implements Listener{
                 $startY = min($block[0]->y, $block[1]->y);
                 $startZ = min($block[0]->z, $block[1]->z);
                 $output .= "블럭 복사를 시작했어요";
-                if($this->getData("debug", false)) self::core()->getLogger()->info("[WorldEditor]{$i->getName()}님이 블럭 복사를 시작했어요");
-                $this->copyBlock($startX, $startY, $startZ, $endX, $endY, $endZ, $i);
+                $callback = "copyBlock";
+                $params = [$startX, $startY, $startZ, $endX, $endY, $endZ, $i];
+
+                $this->debugInfo("{$i->getName()}님이 블럭 복사를 시작했어요");
                 break;
             case "/paste":
                 $output .= "블럭 붙여넣기를 시작했어요";
-                if($this->getData("debug", false)) self::core()->getLogger()->info("[WorldEditor]{$i->getName()}님이 블럭 붙여넣기를 시작했어요");
                 $callback = "pasteBlock";
                 $params = [$i->floor(), $i];
+
+                $this->debugInfo("{$i->getName()}님이 블럭 붙여넣기를 시작했어요");
                 break;
             case "/cut":
                 if(!isset(self::$pos[$i->getName()]) or count(self::$pos[$i->getName()]) < 2){
@@ -565,30 +591,19 @@ class WorldEditor extends PluginBase implements Listener{
                 $startY = min($block[0]->y, $block[1]->y);
                 $startZ = min($block[0]->z, $block[1]->z);
                 $output .= "블럭 복사를 시작했어요";
-                if($this->getData("debug", false)) self::core()->getLogger()->info("[WorldEditor]{$i->getName()}님이 블럭 복사를 시작했어요");
                 $callback = "cutBlock";
                 $params = [$startX, $startY, $startZ, $endX, $endY, $endZ, $i];
+
+                $this->debugInfo("{$i->getName()}님이 블럭 복사를 시작했어요");
                 break;
         }
-        if($output !== "[WorldEditor]") $i->sendMessage($output);
-        if(isset($callback) && isset($params) && is_array($params)) $this->{$callback}(...$params);
+        if($output !== "[WorldEditor]"){
+            $i->sendMessage($output);
+        }
+
+        if(isset($callback) && isset($params) && is_array($params)){
+            $this->{$callback}(...$params);
+        }
         return true;
     }
-}
-
-class WorldEditorTask extends PluginTask{
-
-    protected $callable;
-    protected $args;
-
-    public function __construct(callable $callable, array $args = [], Plugin $owner){
-        $this->callable = $callable;
-        $this->owner = $owner;
-        $this->args = $args;
-    }
-
-    public function onRun($currentTicks){
-        call_user_func_array($this->callable, $this->args);
-    }
-
 }

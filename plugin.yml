@@ -1,6 +1,6 @@
 #name, main, version and api are required
 name: WorldEditor
-main: plugin\WorldEditor
+main: milk\WorldEditor
 version: "1.2"
 api: 1.0.0
 
