@@ -24,9 +24,11 @@ class WorldEditor extends PluginBase implements Listener{
 
     public $data;
     public $pos = [];
+
+    public $copy = [];
+
     public $undo = [];
     public $redo = [];
-    public $copy = [];
 
     public function onEnable(){
         $this->saveDefaultConfig();
@@ -118,6 +120,32 @@ class WorldEditor extends PluginBase implements Listener{
             $this->undo[$key] = [];
         }
         $this->undo[$key][] = $block;
+        return true;
+    }
+
+    /**
+     * @param Block $block
+     * @param Vector3 $pos
+     * @param Level $level
+     *
+     * @return bool
+     */
+    public function saveRedo(Block $block, Vector3 $pos = null, Level $level = null){
+        if($pos instanceof Position && $pos->getLevel() !== null){
+            $block->level = $pos->getLevel();
+        }elseif($level !== null){
+            $block->level = $level;
+        }elseif($block->getLevel() === null){
+            return false;
+        }
+        if($pos !== null){
+            $block->setComponents($pos->x, $pos->y, $pos->z);
+        }
+        $key = "{$block->x}:{$block->y}:{$block->z}";
+        if(!isset($this->redo[$key])){
+            $this->undo[$key] = [];
+        }
+        $this->redo[$key][] = $block;
         return true;
     }
 
@@ -262,8 +290,9 @@ class WorldEditor extends PluginBase implements Listener{
                     ++$count;
                     /** @var Block $block */
                     $block = array_pop($this->undo["$x:$y:$z"]);
-                    $this->redo["$x:$y:$z"][] = $block;
-                    $this->set($block, new Vector3($x, $y, $z));
+                    $pos = new Vector3($x, $y, $z);
+                    $this->saveRedo($block->getLevel()->getBlock($pos), $pos);
+                    $this->set($block, $pos);
                     if(count($this->undo["$x:$y:$z"]) === 0){
                         unset($this->undo["$x:$y:$z"]);
                     }
@@ -308,9 +337,12 @@ class WorldEditor extends PluginBase implements Listener{
                     ++$count;
                     /** @var Block $block */
                     $block = array_pop($this->redo["$x:$y:$z"]);
-                    $this->saveUndo($block, $pos = new Vector3($x, $y, $z));
+                    $pos = new Vector3($x, $y, $z);
+                    $this->saveUndo($block->getLevel()->getBlock($pos), $pos);
                     $this->set($block, $pos);
-                    if(count($this->redo["$x:$y:$z"]) === 0) unset($this->redo["$x:$y:$z"]);
+                    if(count($this->redo["$x:$y:$z"]) === 0){
+                        unset($this->redo["$x:$y:$z"]);
+                    }
                 }
                 if($z < $endZ) $z++;
                 else{
@@ -348,7 +380,13 @@ class WorldEditor extends PluginBase implements Listener{
         }
         while(true){
             $chunk = $player->getLevel()->getChunk($x >> 4, $z >> 4, true);
-            if($chunk !== null && $this->saveCopy($player->getLevel()->getBlockIdAt($x, $y, $z), $player->getLevel()->getBlockDataAt($x, $y, $z), $player, new Vector3($x - $startX, $y - $startY, $z - $startZ))) ++$count;
+            if(
+                $chunk !== null
+                && $this->saveCopy($player->getLevel()->getBlockIdAt($x, $y, $z), $player->getLevel()->getBlockDataAt($x, $y, $z), $player, new Vector3($x - $startX, $y - $startY, $z - $startZ))
+            ){
+                ++$count;
+            }
+
             if($z < $endZ) $z++;
             else{
                 $z = $startZ;
