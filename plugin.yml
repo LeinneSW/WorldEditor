@@ -33,8 +33,6 @@ commands:
  /cut:
   usage: false
   permission: worldedit.command.cutblock
- 
-
 permissions:
  worldedit.command.*:
   default: op

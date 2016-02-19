@@ -23,15 +23,10 @@ use pocketmine\event\player\PlayerInteractEvent;
 class WorldEditor extends PluginBase implements Listener{
 
     public $data;
-
-    public static $pos = [];
-    public static $undo = [];
-    public static $redo = [];
-    public static $copy = [];
-
-    public static function yaml($file){
-        return preg_replace("#^([ ]*)([a-zA-Z_]{1}[^\:]*)\:#m", "$1\"$2\":", file_get_contents($file));
-    }
+    public $pos = [];
+    public $undo = [];
+    public $redo = [];
+    public $copy = [];
 
     public function onEnable(){
         $this->saveDefaultConfig();
@@ -60,23 +55,30 @@ class WorldEditor extends PluginBase implements Listener{
         return !isset($this->data[$data]) ? $this->data[$data] : $default;
     }
 
+    public function isTool(Item $item){
+        return $item->getId() == $this->getData("tool-id", Item::IRON_HOE);
+    }
+
     public function PlayerInteractEvent(PlayerInteractEvent $ev){
         $item = $ev->getItem();
         $block = $ev->getBlock();
         $player = $ev->getPlayer();
-        if($ev->getAction() == PlayerInteractEvent::RIGHT_CLICK_BLOCK && $ev->getFace() !== 255){
-            if($player->hasPermission("worldedit.command.setpos2") && $item->getID() == $this->getData("tool-id", Item::IRON_HOE)){
+        if(
+            $ev->getAction() == PlayerInteractEvent::RIGHT_CLICK_BLOCK
+            && $ev->getFace() !== 255
+        ){
+            if($player->hasPermission("worldedit.command.setpos2") && $this->isTool($item)){
                 $player->sendMessage("[WorldEditor]Pos2 지점을 선택했어요 ({$block->x}, {$block->y}, {$block->z})");
-                self::$pos[$player->getName()][1] = $block->floor();
+                $this->pos[$player->getName()][1] = $block->floor();
                 $ev->setCancelled();
                 return;
             }
         }elseif(
             $ev->getAction() == PlayerInteractEvent::LEFT_CLICK_AIR
-            && $player->hasPermission("worldedit.command.setpos1") && $item->getID() == $this->getData("tool-id", Item::IRON_HOE)
+            && $player->hasPermission("worldedit.command.setpos1") && $this->isTool($item)
         ){
             $player->sendMessage("[WorldEditor]Pos1 지점을 선택했어요 ({$block->x}, {$block->y}, {$block->z})");
-            self::$pos[$player->getName()][0] = $block->floor();
+            $this->pos[$player->getName()][0] = $block->floor();
             return;
         }
     }
@@ -87,7 +89,7 @@ class WorldEditor extends PluginBase implements Listener{
         $player = $ev->getPlayer();
         if($player->hasPermission("worldedit.command.setpos1") && $item->getID() === $this->getData("tool-id", Item::IRON_HOE)){
             $player->sendMessage("[WorldEditor]Pos1 지점을 선택했어요 ({$block->x}, {$block->y}, {$block->z})");
-            self::$pos[$player->getName()][0] = $block->floor();
+            $this->pos[$player->getName()][0] = $block->floor();
             $ev->setCancelled();
             return;
         }
@@ -112,10 +114,10 @@ class WorldEditor extends PluginBase implements Listener{
             $block->setComponents($pos->x, $pos->y, $pos->z);
         }
         $key = "{$block->x}:{$block->y}:{$block->z}";
-        if(!isset(self::$undo[$key])){
-            self::$undo[$key] = [];
+        if(!isset($this->undo[$key])){
+            $this->undo[$key] = [];
         }
-        self::$undo[$key][] = $block;
+        $this->undo[$key][] = $block;
         return true;
     }
 
@@ -124,10 +126,10 @@ class WorldEditor extends PluginBase implements Listener{
             return false;
         }
 
-        if(!isset(self::$copy[$player->getName()])){
-            self::$copy[$player->getName()] = [];
+        if(!isset($this->copy[$player->getName()])){
+            $this->copy[$player->getName()] = [];
         }
-        self::$copy[$player->getName()][] = "$id, $meta, $pos->x, $pos->y, $pos->z";
+        $this->copy[$player->getName()][] = "$id, $meta, $pos->x, $pos->y, $pos->z";
         return true;
     }
 
@@ -256,14 +258,14 @@ class WorldEditor extends PluginBase implements Listener{
         }
         while(true){
             if($count < $this->getData("limit-block", 130)){
-                if(isset(self::$undo["$x:$y:$z"])){
+                if(isset($this->undo["$x:$y:$z"])){
                     ++$count;
                     /** @var Block $block */
-                    $block = array_pop(self::$undo["$x:$y:$z"]);
-                    self::$redo["$x:$y:$z"][] = $block;
+                    $block = array_pop($this->undo["$x:$y:$z"]);
+                    $this->redo["$x:$y:$z"][] = $block;
                     $this->set($block, new Vector3($x, $y, $z));
-                    if(count(self::$undo["$x:$y:$z"]) === 0){
-                        unset(self::$undo["$x:$y:$z"]);
+                    if(count($this->undo["$x:$y:$z"]) === 0){
+                        unset($this->undo["$x:$y:$z"]);
                     }
                 }
                 if($z < $endZ) $z++;
@@ -302,13 +304,13 @@ class WorldEditor extends PluginBase implements Listener{
         }
         while(true){
             if($count < $this->getData("limit-block", 130)){
-                if(isset(self::$redo["$x:$y:$z"])){
+                if(isset($this->redo["$x:$y:$z"])){
                     ++$count;
                     /** @var Block $block */
-                    $block = array_pop(self::$redo["$x:$y:$z"]);
+                    $block = array_pop($this->redo["$x:$y:$z"]);
                     $this->saveUndo($block, $pos = new Vector3($x, $y, $z));
                     $this->set($block, $pos);
-                    if(count(self::$redo["$x:$y:$z"]) === 0) unset(self::$redo["$x:$y:$z"]);
+                    if(count($this->redo["$x:$y:$z"]) === 0) unset($this->redo["$x:$y:$z"]);
                 }
                 if($z < $endZ) $z++;
                 else{
@@ -366,7 +368,7 @@ class WorldEditor extends PluginBase implements Listener{
         $count = 0;
         while(true){
             if($count < $this->getData("limit-block", 130)){
-                if(isset(self::$copy[$player->getName()]) && ($data = array_pop(self::$copy[$player->getName()]))){
+                if(isset($this->copy[$player->getName()]) && ($data = array_pop($this->copy[$player->getName()]))){
                     ++$count;
                     $data = explode(", ", $data);
                     $block = Block::get($data[0], $data[1]);
@@ -412,7 +414,7 @@ class WorldEditor extends PluginBase implements Listener{
                         $chunk->getBlockData($x & 0x0f, $y & 0x7f, $z & 0x0f),
                         new Position($x - $startX, $y - $startY, $z - $startZ, $player->getLevel())
                     );
-                    if(!isset(self::$copy[$player->getName()])) self::$copy[$player->getName()] = [];
+                    if(!isset($this->copy[$player->getName()])) $this->copy[$player->getName()] = [];
                     $this->saveCopy($block->getId(), $block->getDamage(), $player, new Position($x - $startX, $y - $startY, $z - $startZ, $player->getLevel()));
                     $this->saveUndo($block);
                     $this->set(new Air(), $block);
@@ -445,12 +447,12 @@ class WorldEditor extends PluginBase implements Listener{
         switch($cmd->getName()){
             case "/pos1":
                 $pos = $i->floor();
-                self::$pos[$i->getName()][0] = $pos;
+                $this->pos[$i->getName()][0] = $pos;
                 $output .= "Pos1 지점을 선택했어요 ({$pos->x}, {$pos->y}, {$pos->z})";
                 break;
             case "/pos2":
                 $pos = $i->floor();
-                self::$pos[$i->getName()][1] = $pos;
+                $this->pos[$i->getName()][1] = $pos;
                 $output .= "Pos2 지점을 선택했어요 ({$pos->x}, {$pos->y}, {$pos->z})";
                 break;
             case "/set":
@@ -458,12 +460,12 @@ class WorldEditor extends PluginBase implements Listener{
                     $output .= "사용법: //set <id[:meta]>";
                     break;
                 }
-                if(!isset(self::$pos[$i->getName()]) or count(self::$pos[$i->getName()]) < 2){
+                if(!isset($this->pos[$i->getName()]) or count($this->pos[$i->getName()]) < 2){
                     $output .= "지역을 먼저 설정해주세요";
                     break;
                 }
                 $set = explode(":", $sub[0]);
-                $block = self::$pos[$i->getName()];
+                $block = $this->pos[$i->getName()];
                 $endX = max($block[0]->x, $block[1]->x);
                 $endY = max($block[0]->y, $block[1]->y);
                 $endZ = max($block[0]->z, $block[1]->z);
@@ -481,13 +483,13 @@ class WorldEditor extends PluginBase implements Listener{
                     $output .= "사용법: //replace <(선택)id[:meta]> <(바꿀)id[:meta>]";
                     break;
                 }
-                if(!isset(self::$pos[$i->getName()]) or count(self::$pos[$i->getName()]) < 2){
+                if(!isset($this->pos[$i->getName()]) or count($this->pos[$i->getName()]) < 2){
                     $output .= "지역을 먼저 설정해주세요";
                     break;
                 }
                 $get = explode(":", $sub[0]);
                 $set = explode(":", $sub[1]);
-                $block = self::$pos[$i->getName()];
+                $block = $this->pos[$i->getName()];
                 $endX = max($block[0]->x, $block[1]->x);
                 $endY = max($block[0]->y, $block[1]->y);
                 $endZ = max($block[0]->z, $block[1]->z);
@@ -501,11 +503,11 @@ class WorldEditor extends PluginBase implements Listener{
                 $this->debugInfo("{$i->getName()}님이 블럭변경을 시작했어요");
                 break;
             case "/undo":
-                if(!isset(self::$pos[$i->getName()]) or count(self::$pos[$i->getName()]) < 2){
+                if(!isset($this->pos[$i->getName()]) or count($this->pos[$i->getName()]) < 2){
                     $output .= "지역을 먼저 설정해주세요";
                     break;
                 }
-                $block = self::$pos[$i->getName()];
+                $block = $this->pos[$i->getName()];
                 $endX = max($block[0]->x, $block[1]->x);
                 $endY = max($block[0]->y, $block[1]->y);
                 $endZ = max($block[0]->z, $block[1]->z);
@@ -519,11 +521,11 @@ class WorldEditor extends PluginBase implements Listener{
                 $this->debugInfo("{$i->getName()}님이 블럭을 복구하기 시작했어요");
                 break;
             case "/redo":
-                if(!isset(self::$pos[$i->getName()]) or count(self::$pos[$i->getName()]) < 2){
+                if(!isset($this->pos[$i->getName()]) or count($this->pos[$i->getName()]) < 2){
                     $output .= "지역을 먼저 설정해주세요";
                     break;
                 }
-                $block = self::$pos[$i->getName()];
+                $block = $this->pos[$i->getName()];
                 $endX = max($block[0]->x, $block[1]->x);
                 $endY = max($block[0]->y, $block[1]->y);
                 $endZ = max($block[0]->z, $block[1]->z);
@@ -537,11 +539,11 @@ class WorldEditor extends PluginBase implements Listener{
                 $this->debugInfo("{$i->getName()}님이 복구한 블럭을 되돌리기 시작했어요");
                 break;
             case "/copy":
-                if(!isset(self::$pos[$i->getName()]) or count(self::$pos[$i->getName()]) < 2){
+                if(!isset($this->pos[$i->getName()]) or count($this->pos[$i->getName()]) < 2){
                     $output .= "지역을 먼저 설정해주세요";
                     break;
                 }
-                $block = self::$pos[$i->getName()];
+                $block = $this->pos[$i->getName()];
                 $endX = max($block[0]->x, $block[1]->x);
                 $endY = max($block[0]->y, $block[1]->y);
                 $endZ = max($block[0]->z, $block[1]->z);
@@ -562,11 +564,11 @@ class WorldEditor extends PluginBase implements Listener{
                 $this->debugInfo("{$i->getName()}님이 블럭 붙여넣기를 시작했어요");
                 break;
             case "/cut":
-                if(!isset(self::$pos[$i->getName()]) or count(self::$pos[$i->getName()]) < 2){
+                if(!isset($this->pos[$i->getName()]) or count($this->pos[$i->getName()]) < 2){
                     $output .= "지역을 먼저 설정해주세요";
                     break;
                 }
-                $block = self::$pos[$i->getName()];
+                $block = $this->pos[$i->getName()];
                 $endX = max($block[0]->x, $block[1]->x);
                 $endY = max($block[0]->y, $block[1]->y);
                 $endZ = max($block[0]->z, $block[1]->z);
