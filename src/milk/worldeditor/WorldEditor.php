@@ -8,7 +8,6 @@ use pocketmine\block\Block;
 use pocketmine\level\Level;
 use pocketmine\level\Position;
 use pocketmine\Player;
-use pocketmine\Server;
 use pocketmine\item\Item;
 use pocketmine\math\Vector3;
 use pocketmine\event\Listener;
@@ -30,40 +29,24 @@ class WorldEditor extends PluginBase implements Listener{
     public static $redo = [];
     public static $copy = [];
 
-    public static function core(){
-        return Server::getInstance();
-    }
-
     public static function yaml($file){
         return preg_replace("#^([ ]*)([a-zA-Z_]{1}[^\:]*)\:#m", "$1\"$2\":", file_get_contents($file));
     }
 
     public function onEnable(){
-        if(file_exists(self::core()->getDataPath() . "plugins/WorldEditor/data.yml")){
-            $this->data = yaml_parse(self::yaml(self::core()->getDataPath() . "plugins/WorldEditor/data.yml"));
-        }else{
-            $this->data = [
-                "tool-id" => Item::IRON_HOE,
-                "limit-block" => 130,
-                "debug" => false
-            ];
-            if(!is_dir($path = self::core()->getDataPath() . "plugins/WorldEditor/")) mkdir($path);
-            file_put_contents(self::core()->getDataPath() . "plugins/WorldEditor/data.yml", yaml_emit($this->data, YAML_UTF8_ENCODING));
-        }
-        if(file_exists(self::core()->getDataPath() . "plugins/WorldEditor/copy.yml")){
-            self::$copy = yaml_parse(self::yaml(self::core()->getDataPath() . "plugins/WorldEditor/copy.yml"));
-        }
-        self::core()->getPluginManager()->registerEvents($this, $this);
-        self::core()->getLogger()->info(TextFormat::GOLD . "[WorldEditor]플러그인이 활성화 되었습니다");
+        $this->saveDefaultConfig();
+        $this->data = $this->getConfig()->getAll();
+        $this->getServer()->getPluginManager()->registerEvents($this, $this);
+        $this->getServer()->getLogger()->info(TextFormat::GOLD . "[WorldEditor]플러그인이 활성화 되었습니다");
     }
 
     public function onDisable(){
-        file_put_contents(self::core()->getDataPath() . "plugins/WorldEditor/copy.yml", yaml_emit(self::$copy, YAML_UTF8_ENCODING));
+        $this->getServer()->getLogger()->info(TextFormat::GOLD . "[WorldEditor]플러그인이 비활성화 되었습니다");
     }
 
     public function debugInfo($message){
         if($this->getData("debug", false)){
-            self::core()->getLogger()->info(TextFormat::GOLD . $message);
+            $this->getServer()->getLogger()->info(TextFormat::GOLD . $message);
         }
     }
 
@@ -202,7 +185,7 @@ class WorldEditor extends PluginBase implements Listener{
                     }
                 }
             }else{
-                self::core()->getScheduler()->scheduleDelayedTask(new WorldEditorTask([$this, "setBlock"], [$x, [$y, $startY], [$z, $startZ], $endX, $endY, $endZ, $block, $player], $this), 1);
+                $this->getServer()->getScheduler()->scheduleDelayedTask(new WorldEditorTask([$this, "setBlock"], [$x, [$y, $startY], [$z, $startZ], $endX, $endY, $endZ, $block, $player], $this), 1);
                 return;
             }
         }
@@ -248,7 +231,7 @@ class WorldEditor extends PluginBase implements Listener{
                     }
                 }
             }else{
-                self::core()->getScheduler()->scheduleDelayedTask(new WorldEditorTask([$this, "replaceBlock"], [$x, [$y, $startY], [$z, $startZ], $endX, $endY, $endZ, $block, $target, $player], $this), 1);
+                $this->getServer()->getScheduler()->scheduleDelayedTask(new WorldEditorTask([$this, "replaceBlock"], [$x, [$y, $startY], [$z, $startZ], $endX, $endY, $endZ, $block, $target, $player], $this), 1);
                 return;
             }
         }
@@ -294,7 +277,7 @@ class WorldEditor extends PluginBase implements Listener{
                     }
                 }
             }else{
-                self::core()->getScheduler()->scheduleDelayedTask(new WorldEditorTask([$this, "undoBlock"], [$x, [$y, $startY], [$z, $startZ], $endX, $endY, $endZ, $player], $this), 1);
+                $this->getServer()->getScheduler()->scheduleDelayedTask(new WorldEditorTask([$this, "undoBlock"], [$x, [$y, $startY], [$z, $startZ], $endX, $endY, $endZ, $player], $this), 1);
                 return;
             }
         }
@@ -338,7 +321,7 @@ class WorldEditor extends PluginBase implements Listener{
                     }
                 }
             }else{
-                self::core()->getScheduler()->scheduleDelayedTask(new WorldEditorTask([$this, "redoBlock"], [$x, [$y, $startY], [$z, $startZ], $endX, $endY, $endZ, $player], $this), 1);
+                $this->getServer()->getScheduler()->scheduleDelayedTask(new WorldEditorTask([$this, "redoBlock"], [$x, [$y, $startY], [$z, $startZ], $endX, $endY, $endZ, $player], $this), 1);
                 return;
             }
         }
@@ -398,7 +381,7 @@ class WorldEditor extends PluginBase implements Listener{
                     break;
                 }
             }else{
-                self::core()->getScheduler()->scheduleDelayedTask(new WorldEditorTask([$this, "pasteBlock"], [$pos, $player], $this), 1);
+                $this->getServer()->getScheduler()->scheduleDelayedTask(new WorldEditorTask([$this, "pasteBlock"], [$pos, $player], $this), 1);
                 return;
             }
         }
@@ -445,7 +428,7 @@ class WorldEditor extends PluginBase implements Listener{
                     }
                 }
             }else{
-                self::core()->getScheduler()->scheduleDelayedTask(new WorldEditorTask([$this, "copyBlock"], [$x, [$y, $startY], [$z, $startZ], $endX, $endY, $endZ, $player], $this), 1);
+                $this->getServer()->getScheduler()->scheduleDelayedTask(new WorldEditorTask([$this, "copyBlock"], [$x, [$y, $startY], [$z, $startZ], $endX, $endY, $endZ, $player], $this), 1);
                 return;
             }
         }
