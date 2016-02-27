@@ -97,13 +97,6 @@ class WorldEditor extends PluginBase implements Listener{
         }
     }
 
-    /**
-     * @param Block $block
-     * @param Vector3 $pos
-     * @param Level $level
-     *
-     * @return bool
-     */
     public function saveUndo(Block $block, Vector3 $pos = null, Level $level = null){
         if($pos instanceof Position && $pos->getLevel() !== null){
             $block->level = $pos->getLevel();
@@ -123,13 +116,6 @@ class WorldEditor extends PluginBase implements Listener{
         return true;
     }
 
-    /**
-     * @param Block $block
-     * @param Vector3 $pos
-     * @param Level $level
-     *
-     * @return bool
-     */
     public function saveRedo(Block $block, Vector3 $pos = null, Level $level = null){
         if($pos instanceof Position && $pos->getLevel() !== null){
             $block->level = $pos->getLevel();
@@ -143,7 +129,7 @@ class WorldEditor extends PluginBase implements Listener{
         }
         $key = "{$block->x}:{$block->y}:{$block->z}";
         if(!isset($this->redo[$key])){
-            $this->undo[$key] = [];
+            $this->redo[$key] = [];
         }
         $this->redo[$key][] = $block;
         return true;
