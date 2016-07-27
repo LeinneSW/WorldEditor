@@ -60,6 +60,10 @@ class WorldEditor extends PluginBase implements Listener{
     public function isTool(Item $item){
         return $item->getId() == $this->getData("tool-id", Item::IRON_HOE);
     }
+    
+    public function canSetting(Player $player){
+        return isset($this->pos[$i->getName()]) && count($this->pos[$i->getName()]) > 1;
+    }
 
     public function PlayerInteractEvent(PlayerInteractEvent $ev){
         $item = $ev->getItem();
@@ -257,19 +261,11 @@ class WorldEditor extends PluginBase implements Listener{
         $this->debugInfo(($player === null ? "" : "{$player->getName()}님이 ") . "블럭변경을 끝냈어요");
     }
 
-    public function undoBlock($startX, $startY, $startZ, $endX, $endY, $endZ, Player $player = null){
+    public function undoBlock(array $xyz, Vector3 $spos, Vector3 $epos, Level level, Player $player = null){
         $count = 0;
-        $x = $startX;
-        $y = $startY;
-        $z = $startZ;
-        if(is_array($y)){
-            $startY = $y[1];
-            $y = $y[0];
-        }
-        if(is_array($z)){
-            $startZ = $z[1];
-            $z = $z[0];
-        }
+        $x = $xyz[0];
+        $y = $xyz[1];
+        $z = $xyz[2];
         while(true){
             if($count < $this->getData("limit-block", 130)){
                 if(isset($this->undo["$x:$y:$z"])){
@@ -294,7 +290,7 @@ class WorldEditor extends PluginBase implements Listener{
                     }
                 }
             }else{
-                $this->getServer()->getScheduler()->scheduleDelayedTask(new WorldEditorTask([$this, "undoBlock"], [$x, [$y, $startY], [$z, $startZ], $endX, $endY, $endZ, $player], $this), 1);
+                $this->getServer()->getScheduler()->scheduleDelayedTask(new WorldEditorTask([$this, "undoBlock"], [[$x, $y, $z], $spos, $epos, $level, $player], $this), 1);
                 return;
             }
         }
@@ -484,7 +480,7 @@ class WorldEditor extends PluginBase implements Listener{
                     $output .= "사용법: //set <id[:meta]>";
                     break;
                 }
-                if(!isset($this->pos[$i->getName()]) or count($this->pos[$i->getName()]) < 2){
+                if(!$this->canSetting($i)){
                     $output .= "지역을 먼저 설정해주세요";
                     break;
                 }
@@ -507,7 +503,7 @@ class WorldEditor extends PluginBase implements Listener{
                     $output .= "사용법: //replace <(선택)id[:meta]> <(바꿀)id[:meta>]";
                     break;
                 }
-                if(!isset($this->pos[$i->getName()]) or count($this->pos[$i->getName()]) < 2){
+                if(!$this->canSetting($i)){
                     $output .= "지역을 먼저 설정해주세요";
                     break;
                 }
@@ -527,25 +523,21 @@ class WorldEditor extends PluginBase implements Listener{
                 $this->debugInfo("{$i->getName()}님이 블럭변경을 시작했어요");
                 break;
             case "/undo":
-                if(!isset($this->pos[$i->getName()]) or count($this->pos[$i->getName()]) < 2){
+                if(!$this->canSetting($i)){
                     $output .= "지역을 먼저 설정해주세요";
                     break;
                 }
                 $block = $this->pos[$i->getName()];
-                $endX = max($block[0]->x, $block[1]->x);
-                $endY = max($block[0]->y, $block[1]->y);
-                $endZ = max($block[0]->z, $block[1]->z);
-                $startX = min($block[0]->x, $block[1]->x);
-                $startY = min($block[0]->y, $block[1]->y);
-                $startZ = min($block[0]->z, $block[1]->z);
+                $spos = new Vector3(min($block[0]->x, $block[1]->x), min($block[0]->y, $block[1]->y), min($block[0]->z, $block[1]->z));
+                $epos = new Vector3(max($block[0]->x, $block[1]->x), max($block[0]->y, $block[1]->y), max($block[0]->z, $block[1]->z));
                 $output .= "블럭을 되돌리는 중입니다";
                 $callback = "undoBlock";
-                $params = [$startX, $startY, $startZ, $endX, $endY, $endZ, $i];
+                $params = [[$spos->x, $spos->y, $spos->z], $spos, $epos, $block[0]->level, $i];
 
                 $this->debugInfo("{$i->getName()}님이 블럭을 복구하기 시작했어요");
                 break;
             case "/redo":
-                if(!isset($this->pos[$i->getName()]) or count($this->pos[$i->getName()]) < 2){
+                if(!$this->canSetting($i)){
                     $output .= "지역을 먼저 설정해주세요";
                     break;
                 }
@@ -563,7 +555,7 @@ class WorldEditor extends PluginBase implements Listener{
                 $this->debugInfo("{$i->getName()}님이 복구한 블럭을 되돌리기 시작했어요");
                 break;
             case "/copy":
-                if(!isset($this->pos[$i->getName()]) or count($this->pos[$i->getName()]) < 2){
+                if(!$this->canSetting($i)){
                     $output .= "지역을 먼저 설정해주세요";
                     break;
                 }
