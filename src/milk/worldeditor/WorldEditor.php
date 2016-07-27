@@ -62,7 +62,7 @@ class WorldEditor extends PluginBase implements Listener{
     }
     
     public function canSetting(Player $player){
-        return isset($this->pos[$i->getName()]) && count($this->pos[$i->getName()]) > 1;
+        return isset($this->pos[$i->getName()]) && count($this->pos[$i->getName()]) > 1 && $this->pos[$i->getName()][0].level == $this->pos[$i->getName()][1].level;
     }
 
     public function PlayerInteractEvent(PlayerInteractEvent $ev){
@@ -74,7 +74,7 @@ class WorldEditor extends PluginBase implements Listener{
             && $ev->getFace() !== 255
         ){
             if($player->hasPermission("worldedit.command.setpos2") && $this->isTool($item)){
-                $player->sendMessage("[WorldEditor]Pos2 지점을 선택했어요 ({$block->x}, {$block->y}, {$block->z})");
+                $player->sendMessage("[WorldEditor]Pos2 지점을 선택했어요 ({$block->x}, {$block->y}, {$block->z}, {$block->level->getFolderName()})");
                 $this->pos[$player->getName()][1] = $block->floor();
                 $ev->setCancelled();
                 return;
@@ -83,7 +83,7 @@ class WorldEditor extends PluginBase implements Listener{
             $ev->getAction() == PlayerInteractEvent::LEFT_CLICK_AIR
             && $player->hasPermission("worldedit.command.setpos1") && $this->isTool($item)
         ){
-            $player->sendMessage("[WorldEditor]Pos1 지점을 선택했어요 ({$block->x}, {$block->y}, {$block->z})");
+            $player->sendMessage("[WorldEditor]Pos1 지점을 선택했어요 ({$block->x}, {$block->y}, {$block->z}, {$block->level->getFolderName()})");
             $this->pos[$player->getName()][0] = $block->floor();
             return;
         }
