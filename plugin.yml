@@ -1,39 +1,38 @@
 #name, main, version and api are required
 name: WorldEditor
-main: milk\worldeditor\WorldEditor
+main: leinne\worldeditor\WorldEditor
 version: "1.2"
-api: ["1.13.0", "1.13.1", "1.14.0", "2.0.0"]
+api: ["4.0.0"]
 
 author: SW승원
 commands:
  /pos1:
   usage: false
-  permission: worldedit.command.setpos1
+  permission: worldeditor.command.setpos
  /pos2:
   usage: false
-  permission: worldedit.command.setpos2
+  permission: worldeditor.command.setpos
  /set:
   usage: false
-  permission: worldedit.command.setblock
+  permission: worldeditor.command.setblock
  /replace:
   usage: false
-  permission: worldedit.command.replaceblock
+  permission: worldeditor.command.replaceblock
  /undo:
   usage: false
-  permission: worldedit.command.undoblock
+  permission: worldeditor.command.undoblock
  /redo:
   usage: false
-  permission: worldedit.command.redoblock
+  permission: worldeditor.command.redoblock
  /copy:
   usage: false
-  permission: worldedit.command.copyblock
+  permission: worldeditor.command.copyblock
  /paste:
   usage: false
-  permission: worldedit.command.pasteblock
+  permission: worldeditor.command.pasteblock
  /cut:
   usage: false
-  permission: worldedit.command.cutblock
+  permission: worldeditor.command.cutblock
 permissions:
- worldedit.command.*:
+ worldeditor.command.*:
   default: op
-  description: false

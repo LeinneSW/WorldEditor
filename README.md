@@ -1,6 +1,5 @@
 # WorldEditor
   
-Author: **[milk0417](https://github.com/milk0417)**  
-  
-Sorry, but this project is Deprecated  
-[WorldEditor-Nukkit](https://github.com/SW-Team/WorldEditor)
+Author: **[LeinneSW](https://github.com/LeinneSW)**  
+ 
+월드를 자유자재로 다루게 해주는 플러그인입니다.
