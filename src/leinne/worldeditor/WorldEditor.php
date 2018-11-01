@@ -59,10 +59,6 @@ class WorldEditor extends PluginBase implements Listener{
     public function getLimit() : int{
         return $this->data["limit-block"] ?? 130;
     }
-
-    public function isTool(Item $item) : bool{
-        return $item->equals($this->tool);
-    }
     
     public function canSetting(Player $player) : bool{
         $data = $this->pos[$player->getName()] ?? [];
@@ -70,10 +66,9 @@ class WorldEditor extends PluginBase implements Listener{
     }
 
     public function onPlayerInteractEvent(PlayerInteractEvent $ev) : void{
-        $item = $ev->getItem();
         $block = $ev->getBlock();
         $player = $ev->getPlayer();
-        if($player->hasPermission("worldeditor.command.setpos") && $this->isTool($item)){
+        if($player->hasPermission("worldeditor.command.setpos") && $ev->getItem()->equals($this->tool)){
             $ev->setCancelled();
             if($ev->getAction() === PlayerInteractEvent::RIGHT_CLICK_BLOCK){
                 $this->pos[$player->getName()][1] = $block->floor();
@@ -88,7 +83,7 @@ class WorldEditor extends PluginBase implements Listener{
     public function onBlockBreakEvent(BlockBreakEvent $ev) : void{
         $block = $ev->getBlock();
         $player = $ev->getPlayer();
-        if($player->hasPermission("worldeditor.command.setpos") && $this->isTool($ev->getItem())){
+        if($player->hasPermission("worldeditor.command.setpos") && $ev->getItem()->equals($this->tool)){
             $ev->setCancelled();
             $this->pos[$player->getName()][0] = $block->floor();
             $player->sendMessage("[WorldEditor]Pos1 지점을 선택했어요 ({$block->x}, {$block->y}, {$block->z})");
