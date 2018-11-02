@@ -1,4 +1,4 @@
-# WorldEditor
+# ~~WorldEditor~~
   
 Author: **[LeinneSW](https://github.com/LeinneSW)**  
  
