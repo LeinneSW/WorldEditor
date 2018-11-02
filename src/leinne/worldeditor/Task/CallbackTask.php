@@ -1,6 +1,6 @@
 <?php
 
-namespace milk\worldeditor\task;
+namespace leinne\worldeditor\task;
 
 use leinne\worldeditor\WorldEditor;
 use pocketmine\scheduler\Task;
