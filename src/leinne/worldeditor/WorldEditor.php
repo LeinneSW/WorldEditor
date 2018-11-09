@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace leinne\worldeditor;
 
-use milk\worldeditor\task\CallbackTask;
 use pocketmine\block\Air;
 use pocketmine\block\Block;
 use pocketmine\item\ItemFactory;
@@ -14,6 +13,7 @@ use pocketmine\item\Item;
 use pocketmine\math\Vector3;
 use pocketmine\event\Listener;
 use pocketmine\command\Command;
+use pocketmine\scheduler\ClosureTask;
 use pocketmine\tile\Chest;
 use pocketmine\tile\Tile;
 use pocketmine\utils\TextFormat;
@@ -41,11 +41,11 @@ class WorldEditor extends PluginBase implements Listener{
 
     public function onEnable() : void{
         self::$instance = $this;
+
         $this->saveDefaultConfig();
-        
         $this->data = $this->getConfig()->getAll();
         $this->tool = ItemFactory::get($this->data["tool-id"] ?? Item::IRON_HOE, $this->data["tool-meta"] ?? 0);
-        
+
         $this->getServer()->getPluginManager()->registerEvents($this, $this);
         $this->getServer()->getLogger()->info(TextFormat::GOLD . "[WorldEditor]플러그인이 활성화 되었습니다");
     }
@@ -57,7 +57,7 @@ class WorldEditor extends PluginBase implements Listener{
     public function getLimit() : int{
         return $this->data["limit-block"] ?? 130;
     }
-    
+
     public function canEditBlock(Player $player) : bool{
         $data = $this->pos[$player->getName()] ?? [];
         return \count($data) > 1 && $data[0]->level === $data[1]->level;
@@ -188,7 +188,9 @@ class WorldEditor extends PluginBase implements Listener{
                     }
                 }
             }else{
-                $this->getScheduler()->scheduleDelayedTask(new CallbackTask("setBlock", [$spos, $epos, $block, $x, $y, $z]), 1);
+                $this->getScheduler()->scheduleDelayedTask(new ClosureTask(function() use($spos, $epos, $block, $x, $y, $z){
+                    $this->setBlock($spos, $epos, $block, $x, $y, $z);
+                }), 1);
                 return;
             }
         }
@@ -218,7 +220,9 @@ class WorldEditor extends PluginBase implements Listener{
                     }
                 }
             }else{
-                $this->getScheduler()->scheduleDelayedTask(new CallbackTask("replaceBlock", [$spos, $epos, $block, $target, $x, $y, $z]), 1);
+                $this->getScheduler()->scheduleDelayedTask(new ClosureTask(function() use($spos, $epos, $block, $target, $x, $y, $z){
+                    $this->replaceBlock($spos, $epos, $block, $target, $x, $y, $z);
+                }), 1);
                 return;
             }
         }
@@ -231,15 +235,15 @@ class WorldEditor extends PluginBase implements Listener{
         $z = $z ?? $spos->z;
         while(\true){
             if($count < $this->getLimit()){
-                if(isset($this->undo["$x:$y:$z"])){
+                $key = "$x:$y:$z:{$spos->level->getFolderName()}";
+                if(isset($this->undo[$key])){
                     ++$count;
                     /** @var Block $block */
-                    $block = \array_pop($this->undo["$x:$y:$z:{$spos->level->getFolderName()}"]);
-                    $pos = new Position($x, $y, $z, $spos->level);
-                    $this->saveRedo($spos->level->getBlock($pos), $pos);
-                    $this->set($block, $pos);
-                    if(count($this->undo["$x:$y:$z"]) === 0){
-                        unset($this->undo["$x:$y:$z"]);
+                    $block = \array_pop($this->undo[$key]);
+                    $this->saveRedo($spos->level->getBlockAt($x, $y, $z));
+                    $this->set($block);
+                    if(\count($this->undo[$key]) === 0){
+                        unset($this->undo[$key]);
                     }
                 }
                 if($z < $epos->z) ++$z;
@@ -253,7 +257,9 @@ class WorldEditor extends PluginBase implements Listener{
                     }
                 }
             }else{
-                $this->getScheduler()->scheduleDelayedTask(new CallbackTask("undoBlock", [$spos, $epos, $x, $y, $z]), 1);
+                $this->getScheduler()->scheduleDelayedTask(new ClosureTask(function() use($spos, $epos, $x, $y, $z){
+                    $this->undoBlock($spos, $epos, $x, $y, $z);
+                }), 1);
                 return;
             }
         }
@@ -266,15 +272,15 @@ class WorldEditor extends PluginBase implements Listener{
         $z = $z ?? $spos->z;
         while(\true){
             if($count < $this->getLimit()){
-                if(isset($this->redo["$x:$y:$z"])){
+                $key = "$x:$y:$z:{$spos->level->getFolderName()}";
+                if(isset($this->redo[$key])){
                     ++$count;
                     /** @var Block $block */
-                    $block = \array_pop($this->redo["$x:$y:$z:{$spos->level->getFolderName()}"]);
-                    $pos = new Position($x, $y, $z, $spos->level);
-                    $this->saveUndo($spos->level->getBlock($pos), $pos);
-                    $this->set($block, $pos);
-                    if(\count($this->redo["$x:$y:$z"]) === 0){
-                        unset($this->redo["$x:$y:$z"]);
+                    $block = \array_pop($this->redo[$key]);
+                    $this->saveUndo($spos->level->getBlockAt($x, $y, $z));
+                    $this->set($block);
+                    if(\count($this->redo[$key]) === 0){
+                        unset($this->redo[$key]);
                     }
                 }
                 if($z < $epos->z) ++$z;
@@ -288,7 +294,9 @@ class WorldEditor extends PluginBase implements Listener{
                     }
                 }
             }else{
-                $this->getScheduler()->scheduleDelayedTask(new CallbackTask("redoBlock", [$spos, $epos, $x, $y, $z]), 1);
+                $this->getScheduler()->scheduleDelayedTask(new ClosureTask(function() use($spos, $epos, $x, $y, $z){
+                    $this->redoBlock($spos, $epos, $x, $y, $z);
+                }), 1);
                 return;
             }
         }
@@ -322,7 +330,9 @@ class WorldEditor extends PluginBase implements Listener{
                     }
                 }
             }else{
-                $this->getScheduler()->scheduleDelayedTask(new CallbackTask("copyBlock", [$x, $y, $z, $spos, $epos, $player]), 1);
+                $this->getScheduler()->scheduleDelayedTask(new ClosureTask(function() use($spos, $epos, $player, $x, $y, $z){
+                    $this->cutBlock($spos, $epos, $player, $x, $y, $z);
+                }), 1);
                 return;
             }
         }
@@ -353,7 +363,9 @@ class WorldEditor extends PluginBase implements Listener{
                     break;
                 }
             }else{
-                $this->getScheduler()->scheduleDelayedTask(new CallbackTask("pasteBlock", [$pos, $player]), 1);
+                $this->getScheduler()->scheduleDelayedTask(new ClosureTask(function() use($pos, $player) {
+                    $this->pasteBlock($pos, $player);
+                }), 1);
                 return;
             }
         }
