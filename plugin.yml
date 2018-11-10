@@ -6,6 +6,9 @@ api: ["4.0.0"]
 
 author: SW승원
 commands:
+ /wand:
+  usage: ""
+  permission: worldeditor.command.givewand
  /pos1:
   usage: ""
   permission: worldeditor.command.setpos

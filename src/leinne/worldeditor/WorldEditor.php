@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace leinne\worldeditor;
 
-use pocketmine\block\Air;
 use pocketmine\block\Block;
+use pocketmine\block\BlockFactory;
 use pocketmine\item\ItemFactory;
 use pocketmine\level\Position;
 use pocketmine\Player;
@@ -55,7 +55,7 @@ class WorldEditor extends PluginBase implements Listener{
     }
 
     public function getLimit() : int{
-        return $this->data["limit-block"] ?? 130;
+        return $this->data["limit-block"] ?? 200;
     }
 
     public function canEditBlock(Player $player) : bool{
@@ -191,7 +191,6 @@ class WorldEditor extends PluginBase implements Listener{
                 $this->getScheduler()->scheduleDelayedTask(new ClosureTask(function() use($spos, $epos, $block, $x, $y, $z){
                     $this->setBlock($spos, $epos, $block, $x, $y, $z);
                 }), 1);
-                return;
             }
         }
     }
@@ -223,7 +222,6 @@ class WorldEditor extends PluginBase implements Listener{
                 $this->getScheduler()->scheduleDelayedTask(new ClosureTask(function() use($spos, $epos, $block, $target, $x, $y, $z){
                     $this->replaceBlock($spos, $epos, $block, $target, $x, $y, $z);
                 }), 1);
-                return;
             }
         }
     }
@@ -242,9 +240,6 @@ class WorldEditor extends PluginBase implements Listener{
                     $block = \array_pop($this->undo[$key]);
                     $this->saveRedo($spos->level->getBlockAt($x, $y, $z));
                     $this->set($block);
-                    if(\count($this->undo[$key]) === 0){
-                        unset($this->undo[$key]);
-                    }
                 }
                 if($z < $epos->z) ++$z;
                 else{
@@ -260,7 +255,6 @@ class WorldEditor extends PluginBase implements Listener{
                 $this->getScheduler()->scheduleDelayedTask(new ClosureTask(function() use($spos, $epos, $x, $y, $z){
                     $this->undoBlock($spos, $epos, $x, $y, $z);
                 }), 1);
-                return;
             }
         }
     }
@@ -279,9 +273,6 @@ class WorldEditor extends PluginBase implements Listener{
                     $block = \array_pop($this->redo[$key]);
                     $this->saveUndo($spos->level->getBlockAt($x, $y, $z));
                     $this->set($block);
-                    if(\count($this->redo[$key]) === 0){
-                        unset($this->redo[$key]);
-                    }
                 }
                 if($z < $epos->z) ++$z;
                 else{
@@ -297,27 +288,29 @@ class WorldEditor extends PluginBase implements Listener{
                 $this->getScheduler()->scheduleDelayedTask(new ClosureTask(function() use($spos, $epos, $x, $y, $z){
                     $this->redoBlock($spos, $epos, $x, $y, $z);
                 }), 1);
-                return;
             }
         }
     }
 
     public function cutBlock(Vector3 $spos, Vector3 $epos, Player $player, ?int $x = \null, ?int $y = \null, ?int $z = \null) : void{
+        if($player->isClosed() || !$player->isValid()){
+            return;
+        }
+
         $count = 0;
         $x = $x ?? $spos->x;
         $y = $y ?? $spos->y;
         $z = $z ?? $spos->z;
+        $air = BlockFactory::get(Block::AIR);
+        $air->level = $player->level;
         while(\true){
             if($count < $this->getLimit()){
                 $block = $player->level->getBlockAt($x, $y, $z);
                 if($block->getId() !== Block::AIR){
                     ++$count;
-                    if(!isset($this->copy[$player->getName()])){
-                        $this->copy[$player->getName()] = [];
-                    }
                     $this->saveCopy($block, new Position($x - $spos->x, $y - $spos->y, $z - $spos->z, $player->level), $player);
                     $this->saveUndo($block);
-                    $this->set(new Air(), $block);
+                    $this->set($air->setComponents($x, $y, $z));
                 }
                 if($z < $epos->z) ++$z;
                 else{
@@ -333,12 +326,15 @@ class WorldEditor extends PluginBase implements Listener{
                 $this->getScheduler()->scheduleDelayedTask(new ClosureTask(function() use($spos, $epos, $player, $x, $y, $z){
                     $this->cutBlock($spos, $epos, $player, $x, $y, $z);
                 }), 1);
-                return;
             }
         }
     }
 
     public function copyBlock(Vector3 $spos, Vector3 $epos, Player $player) : void{
+        if($player->isClosed() || !$player->isValid()){
+            return;
+        }
+
         for($x = $spos->x; $x <= $epos->x; ++$x) for($y = $spos->y; $y <= $epos->y; ++$y) for($z = $spos->z; $z <= $epos->z; ++$z){
             $block = $player->level->getBlockAt($x, $y, $z);
             if($block->getId() !== Block::AIR){
@@ -347,29 +343,90 @@ class WorldEditor extends PluginBase implements Listener{
         }
     }
 
-    public function pasteBlock(Vector3 $pos, Player $player) : void{
+    public function pasteBlock(Player $player, ?array $copy = \null) : void{
+        if($player->isClosed() || !$player->isValid()){
+            return;
+        }
+
+        if($copy === \null && !isset($this->copy[$player->getName()])){
+            return;
+        }
+
+        $copy = $copy ?? $this->copy[$player->getName()];
         $count = 0;
         while(\true){
-            if($count < $this->getLimit()){
-                if(isset($this->copy[$player->getName()]) && ($block = \array_pop($this->copy[$player->getName()])) !== \null){
-                    ++$count;
-
-                    $block->x += $pos->x;
-                    $block->y += $pos->y;
-                    $block->z += $pos->z;
+            if($count++ < $this->getLimit()){
+                if(($block = \array_pop($copy)) !== \null){
+                    $block = clone $block;
+                    $block->x += (int) $player->x;
+                    $block->y += (int) $player->y;
+                    $block->z += (int) $player->z;
                     $this->saveUndo($player->level->getBlock($block), $block);
                     $this->set($block);
                 }else{
                     break;
                 }
             }else{
-                $this->getScheduler()->scheduleDelayedTask(new ClosureTask(function() use($pos, $player) {
-                    $this->pasteBlock($pos, $player);
+                $this->getScheduler()->scheduleDelayedTask(new ClosureTask(function() use($player, $copy){
+                    $this->pasteBlock($player, $copy);
                 }), 1);
-                return;
             }
         }
     }
+
+    /*public function sphereBlock(Position $pos, Block $block, int $radius, bool $filled) : void{
+        $invRadius = 1 / $radius;
+
+        $nextXn = 0;
+        $breakX = \false;
+        for($x = 0; $x <= $radius && !$breakX; ++$x){
+            $xn = $nextXn;
+            $nextXn = ($x + 1) * $invRadius;
+            $nextYn = 0;
+            $breakY = \false;
+            for($y = 0; $y <= $radius && !$breakY; ++$y){
+                $yn = $nextYn;
+                $nextYn = ($y + 1) * $invRadius;
+                $nextZn = 0;
+                $breakZ = \false;
+                for($z = 0; $z <= $radius; ++$z){
+                    $zn = $nextZn;
+                    $nextXn = ($z + 1) * $invRadius;
+                    $distanceSq = ($xn ** 2) + ($yn ** 2) + ($zn ** 2);
+                    if($distanceSq > 1){
+                        if($z === 0){
+                            if($y === 0){
+                                $breakX = \true;
+                                $breakY = \true;
+                                break;
+                            }
+                            $breakY = \true;
+                            break;
+                        }
+                        break;
+                    }
+                    
+                    if(
+                        !$filled
+                        && ($nextXn ** 2) + ($yn ** 2) + ($zn ** 2) <= 1
+                        && ($xn ** 2) + ($nextYn ** 2) + ($zn ** 2) <= 1
+                        && ($xn ** 2) + ($yn ** 2) + ($nextZn ** 2) <= 1
+                    ){
+                        continue;
+                    }
+                    
+                    $this->set($block, $pos->add($x, $y, $z));
+                    $this->set($block, $pos->add(-$x, $y, $z));
+                    $this->set($block, $pos->add($x, -$y, $z));
+                    $this->set($block, $pos->add($x, $y, -$z));
+                    $this->set($block, $pos->add(-$x, -$y, $z));
+                    $this->set($block, $pos->add(-$x, $y, -$z));
+                    $this->set($block, $pos->add($x, -$y, -$z));
+                    $this->set($block, $pos->add(-$x, -$y, -$z));
+                }
+            }
+        }
+    }*/
 
     public function onCommand(CommandSender $sender, Command $cmd, string $label, array $sub) : bool{
         if(!($sender instanceof Player)){
@@ -377,6 +434,10 @@ class WorldEditor extends PluginBase implements Listener{
         }
 
         switch($cmd->getName()){
+            case "/wand":
+                $output = "월드에딧 도구를 제공했어요";
+                $sender->getInventory()->setItemInHand($this->tool);
+                break;
             case "/pos1":
                 $pos = new Position((int) $sender->x, (int) $sender->y, (int) $sender->z, $sender->level);
                 $this->pos[$sender->getName()][0] = $pos;
@@ -389,7 +450,7 @@ class WorldEditor extends PluginBase implements Listener{
                 break;
             case "/set":
                 if(!isset($sub[0])){
-                    $output = "사용법: //set <id[:meta]>";
+                    $output = "사용법: //set <블럭>";
                     break;
                 }
                 if(!$this->canEditBlock($sender)){
@@ -397,14 +458,16 @@ class WorldEditor extends PluginBase implements Listener{
                     break;
                 }
                 $data = $this->pos[$sender->getName()];
-                $spos = new Position(\min($data[0]->x, $data[1]->x), \min($data[0]->y, $data[1]->y), \min($data[0]->z, $data[1]->z), $data[0]->level);
-                $epos = new Position(\max($data[0]->x, $data[1]->x), \max($data[0]->y, $data[1]->y), \max($data[0]->z, $data[1]->z), $data[0]->level);
-                $output = "블럭을 설정했어요";
-                $this->setBlock($spos, $epos, ItemFactory::fromString($sub[0])->getBlock());
+                $output = "블럭을 설정중이에요";
+                $this->setBlock(
+                    new Position(\min($data[0]->x, $data[1]->x), \min($data[0]->y, $data[1]->y), \min($data[0]->z, $data[1]->z), $data[0]->level),
+                    new Position(\max($data[0]->x, $data[1]->x), \max($data[0]->y, $data[1]->y), \max($data[0]->z, $data[1]->z), $data[0]->level),
+                    ItemFactory::fromString($sub[0])->getBlock()
+                );
                 break;
             case "/replace":
-                if(!isset($sub[0]) or !isset($sub[1])){
-                    $output = "사용법: //replace <(선택)id[:meta]> <(바꿀)id[:meta>]";
+                if(\count($sub) < 2){
+                    $output = "사용법: //replace <선택할 블럭> <바꿀 블럭>";
                     break;
                 }
                 if(!$this->canEditBlock($sender)){
@@ -412,10 +475,12 @@ class WorldEditor extends PluginBase implements Listener{
                     break;
                 }
                 $data = $this->pos[$sender->getName()];
-                $spos = new Position(\min($data[0]->x, $data[1]->x), \min($data[0]->y, $data[1]->y), \min($data[0]->z, $data[1]->z), $data[0]->level);
-                $epos = new Position(\max($data[0]->x, $data[1]->x), \max($data[0]->y, $data[1]->y), \max($data[0]->z, $data[1]->z), $data[0]->level);
-                $output = "블럭을 변경했어요";
-                $this->replaceBlock($spos, $epos, ItemFactory::fromString($sub[0])->getBlock(), ItemFactory::fromString($sub[1])->getBlock());
+                $output = "블럭을 변경하는중이에요";
+                $this->replaceBlock(
+                    new Position(\min($data[0]->x, $data[1]->x), \min($data[0]->y, $data[1]->y), \min($data[0]->z, $data[1]->z), $data[0]->level),
+                    new Position(\max($data[0]->x, $data[1]->x), \max($data[0]->y, $data[1]->y), \max($data[0]->z, $data[1]->z), $data[0]->level),
+                    ItemFactory::fromString($sub[0])->getBlock(), ItemFactory::fromString($sub[1])->getBlock()
+                );
                 break;
             case "/undo":
                 if(!$this->canEditBlock($sender)){
@@ -423,10 +488,11 @@ class WorldEditor extends PluginBase implements Listener{
                     break;
                 }
                 $data = $this->pos[$sender->getName()];
-                $spos = new Position(\min($data[0]->x, $data[1]->x), \min($data[0]->y, $data[1]->y), \min($data[0]->z, $data[1]->z), $data[0]->level);
-                $epos = new Position(\max($data[0]->x, $data[1]->x), \max($data[0]->y, $data[1]->y), \max($data[0]->z, $data[1]->z), $data[0]->level);
-                $output = "블럭을 되돌리는 중입니다";
-                $this->undoBlock($spos, $epos);
+                $output = "블럭을 되돌리는 중이에요";
+                $this->undoBlock(
+                    new Position(\min($data[0]->x, $data[1]->x), \min($data[0]->y, $data[1]->y), \min($data[0]->z, $data[1]->z), $data[0]->level),
+                    new Position(\max($data[0]->x, $data[1]->x), \max($data[0]->y, $data[1]->y), \max($data[0]->z, $data[1]->z), $data[0]->level)
+                );
                 break;
             case "/redo":
                 if(!$this->canEditBlock($sender)){
@@ -434,25 +500,11 @@ class WorldEditor extends PluginBase implements Listener{
                     break;
                 }
                 $data = $this->pos[$sender->getName()];
-                $spos = new Position(\min($data[0]->x, $data[1]->x), \min($data[0]->y, $data[1]->y), \min($data[0]->z, $data[1]->z), $data[0]->level);
-                $epos = new Position(\max($data[0]->x, $data[1]->x), \max($data[0]->y, $data[1]->y), \max($data[0]->z, $data[1]->z), $data[0]->level);
-                $output = "블럭 설정을 시작했어요";
-                $this->redoBlock($spos, $epos);
-                break;
-            case "/copy":
-                if(!$this->canEditBlock($sender)){
-                    $output = "지역을 올바르게 설정해주세요";
-                    break;
-                }
-                $data = $this->pos[$sender->getName()];
-                $spos = new Position(\min($data[0]->x, $data[1]->x), \min($data[0]->y, $data[1]->y), \min($data[0]->z, $data[1]->z), $data[0]->level);
-                $epos = new Position(\max($data[0]->x, $data[1]->x), \max($data[0]->y, $data[1]->y), \max($data[0]->z, $data[1]->z), $data[0]->level);
-                $output = "블럭 복사를 시작했어요";
-                $this->copyBlock($spos, $epos, $sender);
-                break;
-            case "/paste":
-                $output = "블럭 붙여넣기를 시작했어요";
-                $this->pasteBlock($sender->floor(), $sender);
+                $output = "블럭을 되돌리는 중이에요";
+                $this->redoBlock(
+                    new Position(\min($data[0]->x, $data[1]->x), \min($data[0]->y, $data[1]->y), \min($data[0]->z, $data[1]->z), $data[0]->level),
+                    new Position(\max($data[0]->x, $data[1]->x), \max($data[0]->y, $data[1]->y), \max($data[0]->z, $data[1]->z), $data[0]->level)
+                );
                 break;
             case "/cut":
                 if(!isset($this->pos[$sender->getName()]) || \count($this->pos[$sender->getName()]) < 2){
@@ -460,10 +512,29 @@ class WorldEditor extends PluginBase implements Listener{
                     break;
                 }
                 $data = $this->pos[$sender->getName()];
-                $spos = new Position(\min($data[0]->x, $data[1]->x), \min($data[0]->y, $data[1]->y), \min($data[0]->z, $data[1]->z), $data[0]->level);
-                $epos = new Position(\max($data[0]->x, $data[1]->x), \max($data[0]->y, $data[1]->y), \max($data[0]->z, $data[1]->z), $data[0]->level);
-                $output = "블럭 복사를 시작했어요";
-                $this->cutBlock($spos, $epos, $sender);
+                $output = "블럭을 잘라내는 중이에요";
+                $this->cutBlock(
+                    new Position(\min($data[0]->x, $data[1]->x), \min($data[0]->y, $data[1]->y), \min($data[0]->z, $data[1]->z), $data[0]->level),
+                    new Position(\max($data[0]->x, $data[1]->x), \max($data[0]->y, $data[1]->y), \max($data[0]->z, $data[1]->z), $data[0]->level),
+                    $sender
+                );
+                break;
+            case "/copy":
+                if(!$this->canEditBlock($sender)){
+                    $output = "지역을 올바르게 설정해주세요";
+                    break;
+                }
+                $data = $this->pos[$sender->getName()];
+                $output = "블럭을 복사중이에요";
+                $this->copyBlock(
+                    new Position(\min($data[0]->x, $data[1]->x), \min($data[0]->y, $data[1]->y), \min($data[0]->z, $data[1]->z), $data[0]->level),
+                    new Position(\max($data[0]->x, $data[1]->x), \max($data[0]->y, $data[1]->y), \max($data[0]->z, $data[1]->z), $data[0]->level),
+                    $sender
+                );
+                break;
+            case "/paste":
+                $output = "블럭 붙여넣기를 시작했어요";
+                $this->pasteBlock($sender);
                 break;
         }
         if(isset($output)){
