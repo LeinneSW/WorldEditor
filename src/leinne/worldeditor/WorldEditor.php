@@ -30,8 +30,10 @@ class WorldEditor extends PluginBase implements Listener{
     /** @var Item */
     private $tool;
 
+    /** @var int */
+    private $limit, $tick;
+
     private $pos = [];
-    private $data = [];
 
     private $copy = [], $undo = [], $redo = [];
 
@@ -43,8 +45,11 @@ class WorldEditor extends PluginBase implements Listener{
         self::$instance = $this;
 
         $this->saveDefaultConfig();
-        $this->data = $this->getConfig()->getAll();
-        $this->tool = ItemFactory::get($this->data["tool-id"] ?? Item::IRON_HOE, $this->data["tool-meta"] ?? 0);
+        $data = $this->getConfig()->getAll();
+
+        $this->limit = $data["limit-block"] ?? 200;
+        $this->tick = \max((int) $data["update-tick"] ?? 2, 2);
+        $this->tool = ItemFactory::get($data["tool-id"] ?? Item::IRON_HOE, $data["tool-meta"] ?? 0);
 
         $this->getServer()->getPluginManager()->registerEvents($this, $this);
         $this->getServer()->getLogger()->info(TextFormat::GOLD . "[WorldEditor]플러그인이 활성화 되었습니다");
@@ -52,10 +57,6 @@ class WorldEditor extends PluginBase implements Listener{
 
     public function onDisable() : void{
         $this->getServer()->getLogger()->info(TextFormat::GOLD . "[WorldEditor]플러그인이 비활성화 되었습니다");
-    }
-
-    public function getLimit() : int{
-        return $this->data["limit-block"] ?? 200;
     }
 
     public function canEditBlock(Player $player) : bool{
@@ -170,7 +171,7 @@ class WorldEditor extends PluginBase implements Listener{
         $y = $y ?? $spos->y;
         $z = $z ?? $spos->z;
         while(\true){
-            if($count < $this->getLimit()){
+            if($count < $this->limit){
                 $before = $spos->level->getBlockAt($x, $y, $z);
                 if($before->getId() !== $block->getId() or $before->getDamage() !== $block->getDamage()){
                     ++$count;
@@ -190,7 +191,7 @@ class WorldEditor extends PluginBase implements Listener{
             }else{
                 $this->getScheduler()->scheduleDelayedTask(new ClosureTask(function() use($spos, $epos, $block, $x, $y, $z){
                     $this->setBlock($spos, $epos, $block, $x, $y, $z);
-                }), 2);
+                }), $this->tick);
             }
         }
     }
@@ -201,7 +202,7 @@ class WorldEditor extends PluginBase implements Listener{
         $y = $y ?? $spos->y;
         $z = $z ?? $spos->z;
         while(\true){
-            if($count < $this->getLimit()){
+            if($count < $this->limit){
                 $before = $spos->level->getBlockAt($x, $y, $z);
                 if($before->getId() === $block->getId() && (!$checkDamage || $before->getDamage() === $block->getDamage())){
                     ++$count;
@@ -221,7 +222,7 @@ class WorldEditor extends PluginBase implements Listener{
             }else{
                 $this->getScheduler()->scheduleDelayedTask(new ClosureTask(function() use($spos, $epos, $block, $target, $checkDamage, $x, $y, $z){
                     $this->replaceBlock($spos, $epos, $block, $target, $checkDamage, $x, $y, $z);
-                }), 2);
+                }), $this->tick);
             }
         }
     }
@@ -232,7 +233,7 @@ class WorldEditor extends PluginBase implements Listener{
         $y = $y ?? $spos->y;
         $z = $z ?? $spos->z;
         while(\true){
-            if($count < $this->getLimit()){
+            if($count < $this->limit){
                 $key = "$x:$y:$z:{$spos->level->getFolderName()}";
                 if(isset($this->undo[$key])){
                     ++$count;
@@ -254,7 +255,7 @@ class WorldEditor extends PluginBase implements Listener{
             }else{
                 $this->getScheduler()->scheduleDelayedTask(new ClosureTask(function() use($spos, $epos, $x, $y, $z){
                     $this->undoBlock($spos, $epos, $x, $y, $z);
-                }), 2);
+                }), $this->tick);
             }
         }
     }
@@ -265,7 +266,7 @@ class WorldEditor extends PluginBase implements Listener{
         $y = $y ?? $spos->y;
         $z = $z ?? $spos->z;
         while(\true){
-            if($count < $this->getLimit()){
+            if($count < $this->limit){
                 $key = "$x:$y:$z:{$spos->level->getFolderName()}";
                 if(isset($this->redo[$key])){
                     ++$count;
@@ -287,7 +288,7 @@ class WorldEditor extends PluginBase implements Listener{
             }else{
                 $this->getScheduler()->scheduleDelayedTask(new ClosureTask(function() use($spos, $epos, $x, $y, $z){
                     $this->redoBlock($spos, $epos, $x, $y, $z);
-                }), 2);
+                }), $this->tick);
             }
         }
     }
@@ -304,7 +305,7 @@ class WorldEditor extends PluginBase implements Listener{
         $air = BlockFactory::get(Block::AIR);
         $air->level = $player->level;
         while(\true){
-            if($count < $this->getLimit()){
+            if($count < $this->limit){
                 $block = $player->level->getBlockAt($x, $y, $z);
                 if($block->getId() !== Block::AIR){
                     ++$count;
@@ -325,7 +326,7 @@ class WorldEditor extends PluginBase implements Listener{
             }else{
                 $this->getScheduler()->scheduleDelayedTask(new ClosureTask(function() use($spos, $epos, $player, $x, $y, $z){
                     $this->cutBlock($spos, $epos, $player, $x, $y, $z);
-                }), 2);
+                }), $this->tick);
             }
         }
     }
@@ -355,7 +356,7 @@ class WorldEditor extends PluginBase implements Listener{
         $copy = $copy ?? $this->copy[$player->getName()];
         $count = 0;
         while(\true){
-            if($count++ < $this->getLimit()){
+            if($count++ < $this->limit){
                 if(($block = \array_pop($copy)) !== \null){
                     $block = clone $block;
                     $block->x += (int) $player->x;
@@ -369,7 +370,7 @@ class WorldEditor extends PluginBase implements Listener{
             }else{
                 $this->getScheduler()->scheduleDelayedTask(new ClosureTask(function() use($player, $copy){
                     $this->pasteBlock($player, $copy);
-                }), 2);
+                }), $this->tick);
             }
         }
     }
