@@ -190,7 +190,7 @@ class WorldEditor extends PluginBase implements Listener{
             }else{
                 $this->getScheduler()->scheduleDelayedTask(new ClosureTask(function() use($spos, $epos, $block, $x, $y, $z){
                     $this->setBlock($spos, $epos, $block, $x, $y, $z);
-                }), 1);
+                }), 2);
             }
         }
     }
@@ -221,7 +221,7 @@ class WorldEditor extends PluginBase implements Listener{
             }else{
                 $this->getScheduler()->scheduleDelayedTask(new ClosureTask(function() use($spos, $epos, $block, $target, $checkDamage, $x, $y, $z){
                     $this->replaceBlock($spos, $epos, $block, $target, $checkDamage, $x, $y, $z);
-                }), 1);
+                }), 2);
             }
         }
     }
@@ -254,7 +254,7 @@ class WorldEditor extends PluginBase implements Listener{
             }else{
                 $this->getScheduler()->scheduleDelayedTask(new ClosureTask(function() use($spos, $epos, $x, $y, $z){
                     $this->undoBlock($spos, $epos, $x, $y, $z);
-                }), 1);
+                }), 2);
             }
         }
     }
@@ -287,7 +287,7 @@ class WorldEditor extends PluginBase implements Listener{
             }else{
                 $this->getScheduler()->scheduleDelayedTask(new ClosureTask(function() use($spos, $epos, $x, $y, $z){
                     $this->redoBlock($spos, $epos, $x, $y, $z);
-                }), 1);
+                }), 2);
             }
         }
     }
@@ -325,7 +325,7 @@ class WorldEditor extends PluginBase implements Listener{
             }else{
                 $this->getScheduler()->scheduleDelayedTask(new ClosureTask(function() use($spos, $epos, $player, $x, $y, $z){
                     $this->cutBlock($spos, $epos, $player, $x, $y, $z);
-                }), 1);
+                }), 2);
             }
         }
     }
@@ -369,7 +369,7 @@ class WorldEditor extends PluginBase implements Listener{
             }else{
                 $this->getScheduler()->scheduleDelayedTask(new ClosureTask(function() use($player, $copy){
                     $this->pasteBlock($player, $copy);
-                }), 1);
+                }), 2);
             }
         }
     }
