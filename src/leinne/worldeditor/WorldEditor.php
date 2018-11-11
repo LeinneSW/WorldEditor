@@ -195,7 +195,7 @@ class WorldEditor extends PluginBase implements Listener{
         }
     }
 
-    public function replaceBlock(Position $spos, Position $epos, Block $block, Block $target, ?int $x = \null, ?int $y = \null, ?int $z = \null) : void{
+    public function replaceBlock(Position $spos, Position $epos, Block $block, Block $target, bool $checkDamage, ?int $x = \null, ?int $y = \null, ?int $z = \null) : void{
         $count = 0;
         $x = $x ?? $spos->x;
         $y = $y ?? $spos->y;
@@ -203,7 +203,7 @@ class WorldEditor extends PluginBase implements Listener{
         while(\true){
             if($count < $this->getLimit()){
                 $before = $spos->level->getBlockAt($x, $y, $z);
-                if($before->getId() === $block->getId() && $before->getDamage() === $block->getDamage()){
+                if($before->getId() === $block->getId() && (!$checkDamage || $before->getDamage() === $block->getDamage())){
                     ++$count;
                     $this->saveUndo($before);
                     $this->set($target, $before);
@@ -219,8 +219,8 @@ class WorldEditor extends PluginBase implements Listener{
                     }
                 }
             }else{
-                $this->getScheduler()->scheduleDelayedTask(new ClosureTask(function() use($spos, $epos, $block, $target, $x, $y, $z){
-                    $this->replaceBlock($spos, $epos, $block, $target, $x, $y, $z);
+                $this->getScheduler()->scheduleDelayedTask(new ClosureTask(function() use($spos, $epos, $block, $target, $checkDamage, $x, $y, $z){
+                    $this->replaceBlock($spos, $epos, $block, $target, $checkDamage, $x, $y, $z);
                 }), 1);
             }
         }
@@ -468,7 +468,7 @@ class WorldEditor extends PluginBase implements Listener{
                 break;
             case "/replace":
                 if(\count($sub) < 2){
-                    $output = "사용법: //replace <선택할 블럭> <바꿀 블럭>";
+                    $output = "사용법: //replace <선택할 블럭> <바꿀 블럭> [<대미지 체크>]";
                     break;
                 }
                 if(!$this->canEditBlock($sender)){
@@ -480,7 +480,9 @@ class WorldEditor extends PluginBase implements Listener{
                 $this->replaceBlock(
                     new Position(\min($data[0]->x, $data[1]->x), \min($data[0]->y, $data[1]->y), \min($data[0]->z, $data[1]->z), $data[0]->level),
                     new Position(\max($data[0]->x, $data[1]->x), \max($data[0]->y, $data[1]->y), \max($data[0]->z, $data[1]->z), $data[0]->level),
-                    ItemFactory::fromString($sub[0])->getBlock(), ItemFactory::fromString($sub[1])->getBlock()
+                    ItemFactory::fromString($sub[0])->getBlock(),
+                    ItemFactory::fromString($sub[1])->getBlock(),
+                    $sub[3] !== "false" ?? \true
                 );
                 break;
             case "/undo":
