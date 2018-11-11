@@ -430,6 +430,7 @@ class WorldEditor extends PluginBase implements Listener{
 
     public function onCommand(CommandSender $sender, Command $cmd, string $label, array $sub) : bool{
         if(!($sender instanceof Player)){
+            $sender->sendMessage("[WorldEditor]인게임에서 이용 가능해요");
             return \true;
         }
 
