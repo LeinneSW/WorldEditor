@@ -302,6 +302,7 @@ class WorldEditor extends PluginBase implements Listener{
         $x = $x ?? $spos->x;
         $y = $y ?? $spos->y;
         $z = $z ?? $spos->z;
+
         $air = BlockFactory::get(Block::AIR);
         $air->level = $player->level;
         while(\true){
@@ -483,7 +484,7 @@ class WorldEditor extends PluginBase implements Listener{
                     new Position(\max($data[0]->x, $data[1]->x), \max($data[0]->y, $data[1]->y), \max($data[0]->z, $data[1]->z), $data[0]->level),
                     ItemFactory::fromString($sub[0])->getBlock(),
                     ItemFactory::fromString($sub[1])->getBlock(),
-                    $sub[3] !== "false" ?? \true
+                    isset($sub[2]) ? $sub[2] === "true" : \true
                 );
                 break;
             case "/undo":
