@@ -31,7 +31,7 @@ class WorldEditor extends PluginBase implements Listener{
     private $tool;
 
     /** @var int */
-    private $limit, $tick;
+    private $tick = 2, $limit = 200;
 
     private $pos = [];
 
@@ -47,9 +47,14 @@ class WorldEditor extends PluginBase implements Listener{
         $this->saveDefaultConfig();
         $data = $this->getConfig()->getAll();
 
-        $this->limit = $data["limit-block"] ?? 200;
-        $this->tick = \max((int) $data["update-tick"] ?? 2, 2);
-        $this->tool = ItemFactory::get($data["tool-id"] ?? Item::IRON_HOE, $data["tool-meta"] ?? 0);
+        if(isset($data["update-tick"]) && \is_numeric($data["update-tick"])){
+            $this->tick = (int) \max($data["update-tick"], 1);
+        }
+
+        if(isset($data["limit-block"]) && \is_numeric($data["limit-block"])){
+            $this->limit = (int) \max($data["limit-block"], 1);
+        }
+        $this->tool = ItemFactory::fromString($data["tool"] ?? "IRON_HOE");
 
         $this->getServer()->getPluginManager()->registerEvents($this, $this);
         $this->getServer()->getLogger()->info(TextFormat::GOLD . "[WorldEditor]플러그인이 활성화 되었습니다");
