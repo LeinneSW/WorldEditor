@@ -33,6 +33,7 @@ class WorldEditor extends PluginBase implements Listener{
     /** @var int */
     private $tick = 2, $limit = 200;
 
+    /** @var Position[][] */
     private $pos = [];
 
     private $copy = [], $undo = [], $redo = [];
@@ -66,7 +67,7 @@ class WorldEditor extends PluginBase implements Listener{
 
     public function canEditBlock(Player $player) : bool{
         $data = $this->pos[$player->getName()] ?? [];
-        return \count($data) > 1 && $data[0]->level === $data[1]->level;
+        return \count($data) === 2 && $data[0]->level === $data[1]->level;
     }
 
     public function onPlayerInteractEvent(PlayerInteractEvent $ev) : void{
@@ -75,13 +76,36 @@ class WorldEditor extends PluginBase implements Listener{
         if($player->hasPermission("worldeditor.command.setpos") && $ev->getItem()->equals($this->tool)){
             $ev->setCancelled();
             if($ev->getAction() === PlayerInteractEvent::LEFT_CLICK_BLOCK){
-                $this->pos[$player->getName()][0] = $block->asPosition();
-                $player->sendMessage("[WorldEditor]Pos1 지점을 선택했어요 ({$block->x}, {$block->y}, {$block->z}, {$block->level->getFolderName()})");
+                $pos = $this->setPos($player, 0, $block);
+                if($pos !== \null){
+                    $player->sendMessage("[WorldEditor]Pos1 지점을 선택했어요 ({$pos->x}, {$pos->y}, {$pos->z}, {$pos->level->getFolderName()})");
+                }
             }else{
-                $this->pos[$player->getName()][1] = $block->asPosition();
-                $player->sendMessage("[WorldEditor]Pos2 지점을 선택했어요 ({$block->x}, {$block->y}, {$block->z}, {$block->level->getFolderName()})");
+                $pos = $this->setPos($player, 1, $block);
+                if($pos !== \null){
+                    $player->sendMessage("[WorldEditor]Pos2 지점을 선택했어요 ({$pos->x}, {$pos->y}, {$pos->z}, {$pos->level->getFolderName()})");
+                }
             }
         }
+    }
+
+    public function getMinPos(Player $player) : Position{
+        $data = $this->pos[$player->getName()];
+        return new Position(\min($data[0]->x, $data[1]->x), \min($data[0]->y, $data[1]->y), \min($data[0]->z, $data[1]->z), $data[0]->level);
+    }
+
+    public function getMaxPos(Player $player) : Position{
+        $data = $this->pos[$player->getName()];
+        return new Position(\max($data[0]->x, $data[1]->x), \max($data[0]->y, $data[1]->y), \max($data[0]->z, $data[1]->z), $data[0]->level);
+    }
+
+    public function setPos(Player $player, int $index, Position $pos) : ?Position{
+        if($index > 1 || $index < 0 || !$pos->isValid()){
+            return \null;
+        }
+
+        $floor = $pos->floor();
+        return $this->pos[$player->getName()][$index] = new Position($floor->x, $floor->y, $floor->z, $pos->level);
     }
 
     public function onBlockBreakEvent(BlockBreakEvent $ev) : void{
@@ -89,8 +113,10 @@ class WorldEditor extends PluginBase implements Listener{
         $player = $ev->getPlayer();
         if($player->hasPermission("worldeditor.command.setpos") && $ev->getItem()->equals($this->tool)){
             $ev->setCancelled();
-            $this->pos[$player->getName()][0] = $block->asPosition();
-            $player->sendMessage("[WorldEditor]Pos1 지점을 선택했어요 ({$block->x}, {$block->y}, {$block->z}, {$block->level->getFolderName()})");
+            $pos = $this->setPos($player, 0, $block);
+            if($pos !== \null){
+                $player->sendMessage("[WorldEditor]Pos1 지점을 선택했어요 ({$pos->x}, {$pos->y}, {$pos->z}, {$pos->level->getFolderName()})");
+            }
             return;
         }
     }
@@ -183,14 +209,13 @@ class WorldEditor extends PluginBase implements Listener{
                     $this->saveUndo($before);
                     $this->set($block, $before);
                 }
-                if($z < $epos->z) ++$z;
-                else{
-                    $z = $spos->z;
-                    if($y < $epos->y) ++$y;
-                    else{
-                        $y = $spos->y;
-                        if($x < $epos->x) ++$x;
-                        else break;
+                if(++$x > $epos->x){
+                    $x = $spos->x;
+                    if(++$z > $epos->z){
+                        $z = $spos->z;
+                        if(++$y > $epos->y){
+                            break;
+                        }
                     }
                 }
             }else{
@@ -214,14 +239,13 @@ class WorldEditor extends PluginBase implements Listener{
                     $this->saveUndo($before);
                     $this->set($target, $before);
                 }
-                if($z < $epos->z) ++$z;
-                else{
-                    $z = $spos->z;
-                    if($y < $epos->y) ++$y;
-                    else{
-                        $y = $spos->y;
-                        if($x < $epos->x) ++$x;
-                        else break;
+                if(++$x > $epos->x){
+                    $x = $spos->x;
+                    if(++$z > $epos->z){
+                        $z = $spos->z;
+                        if(++$y > $epos->y){
+                            break;
+                        }
                     }
                 }
             }else{
@@ -247,14 +271,13 @@ class WorldEditor extends PluginBase implements Listener{
                     $this->saveRedo($spos->level->getBlockAt($x, $y, $z));
                     $this->set($block);
                 }
-                if($z < $epos->z) ++$z;
-                else{
-                    $z = $spos->z;
-                    if($y < $epos->y) ++$y;
-                    else{
-                        $y = $spos->y;
-                        if($x < $epos->x) ++$x;
-                        else break;
+                if(++$x > $epos->x){
+                    $x = $spos->x;
+                    if(++$z > $epos->z){
+                        $z = $spos->z;
+                        if(++$y > $epos->y){
+                            break;
+                        }
                     }
                 }
             }else{
@@ -280,14 +303,13 @@ class WorldEditor extends PluginBase implements Listener{
                     $this->saveUndo($spos->level->getBlockAt($x, $y, $z));
                     $this->set($block);
                 }
-                if($z < $epos->z) ++$z;
-                else{
-                    $z = $spos->z;
-                    if($y < $epos->y) ++$y;
-                    else{
-                        $y = $spos->y;
-                        if($x < $epos->x) ++$x;
-                        else break;
+                if(++$x > $epos->x){
+                    $x = $spos->x;
+                    if(++$z > $epos->z){
+                        $z = $spos->z;
+                        if(++$y > $epos->y){
+                            break;
+                        }
                     }
                 }
             }else{
@@ -319,14 +341,13 @@ class WorldEditor extends PluginBase implements Listener{
                     $this->saveUndo($block);
                     $this->set($air->setComponents($x, $y, $z));
                 }
-                if($z < $epos->z) ++$z;
-                else{
-                    $z = $spos->z;
-                    if($y < $epos->y) ++$y;
-                    else{
-                        $y = $spos->y;
-                        if($x < $epos->x) ++$x;
-                        else break;
+                if(++$x > $epos->x){
+                    $x = $spos->x;
+                    if(++$z > $epos->z){
+                        $z = $spos->z;
+                        if(++$y > $epos->y){
+                            break;
+                        }
                     }
                 }
             }else{
@@ -447,14 +468,16 @@ class WorldEditor extends PluginBase implements Listener{
                 $sender->getInventory()->setItemInHand($this->tool);
                 break;
             case "/pos1":
-                $pos = new Position((int) $sender->x, (int) $sender->y, (int) $sender->z, $sender->level);
-                $this->pos[$sender->getName()][0] = $pos;
-                $output = "현재 위치를 Pos1 지점으로 지정했어요 ({$pos->x}, {$pos->y}, {$pos->z}, {$pos->level->getFolderName()})";
+                $pos = $this->setPos($sender, 0, $sender);
+                if($pos !== \null){
+                    $output = "현재 위치를 Pos1 지점으로 지정했어요 ({$pos->x}, {$pos->y}, {$pos->z}, {$pos->level->getFolderName()})";
+                }
                 break;
             case "/pos2":
-                $pos = new Position((int) $sender->x, (int) $sender->y, (int) $sender->z, $sender->level);
-                $this->pos[$sender->getName()][1] = $pos;
-                $output = "현재 위치를 Pos2 지점으로 지정했어요 ({$pos->x}, {$pos->y}, {$pos->z}, {$pos->level->getFolderName()})";
+                $pos = $this->setPos($sender, 1, $sender);
+                if($pos !== \null){
+                    $output = "현재 위치를 Pos2 지점으로 지정했어요 ({$pos->x}, {$pos->y}, {$pos->z}, {$pos->level->getFolderName()})";
+                }
                 break;
             case "/set":
                 if(!isset($sub[0])){
@@ -465,82 +488,52 @@ class WorldEditor extends PluginBase implements Listener{
                     $output = "지역을 올바르게 설정해주세요";
                     break;
                 }
-                $data = $this->pos[$sender->getName()];
                 $output = "블럭을 설정중이에요";
-                $this->setBlock(
-                    new Position(\min($data[0]->x, $data[1]->x), \min($data[0]->y, $data[1]->y), \min($data[0]->z, $data[1]->z), $data[0]->level),
-                    new Position(\max($data[0]->x, $data[1]->x), \max($data[0]->y, $data[1]->y), \max($data[0]->z, $data[1]->z), $data[0]->level),
-                    ItemFactory::fromString($sub[0])->getBlock()
-                );
+                $this->setBlock($this->getMinPos($sender), $this->getMaxPos($sender), ItemFactory::fromString($sub[0])->getBlock());
                 break;
             case "/replace":
                 if(\count($sub) < 2){
-                    $output = "사용법: //replace <선택할 블럭> <바꿀 블럭> [<대미지 체크>]";
+                    $output = "사용법: //replace <선택할 블럭> <바꿀 블럭> [<대미지 체크여부(true|false)>]";
                     break;
                 }
                 if(!$this->canEditBlock($sender)){
                     $output = "지역을 올바르게 설정해주세요";
                     break;
                 }
-                $data = $this->pos[$sender->getName()];
                 $output = "블럭을 변경하는중이에요";
-                $this->replaceBlock(
-                    new Position(\min($data[0]->x, $data[1]->x), \min($data[0]->y, $data[1]->y), \min($data[0]->z, $data[1]->z), $data[0]->level),
-                    new Position(\max($data[0]->x, $data[1]->x), \max($data[0]->y, $data[1]->y), \max($data[0]->z, $data[1]->z), $data[0]->level),
-                    ItemFactory::fromString($sub[0])->getBlock(),
-                    ItemFactory::fromString($sub[1])->getBlock(),
-                    isset($sub[2]) ? $sub[2] === "true" : \true
-                );
+                $this->replaceBlock($this->getMinPos($sender), $this->getMaxPos($sender), ItemFactory::fromString($sub[0])->getBlock(), ItemFactory::fromString($sub[1])->getBlock(), ($sub[2] ?? "") === "true");
                 break;
             case "/undo":
                 if(!$this->canEditBlock($sender)){
                     $output = "지역을 올바르게 설정해주세요";
                     break;
                 }
-                $data = $this->pos[$sender->getName()];
                 $output = "블럭을 되돌리는 중이에요";
-                $this->undoBlock(
-                    new Position(\min($data[0]->x, $data[1]->x), \min($data[0]->y, $data[1]->y), \min($data[0]->z, $data[1]->z), $data[0]->level),
-                    new Position(\max($data[0]->x, $data[1]->x), \max($data[0]->y, $data[1]->y), \max($data[0]->z, $data[1]->z), $data[0]->level)
-                );
+                $this->undoBlock($this->getMinPos($sender), $this->getMaxPos($sender));
                 break;
             case "/redo":
                 if(!$this->canEditBlock($sender)){
                     $output = "지역을 올바르게 설정해주세요";
                     break;
                 }
-                $data = $this->pos[$sender->getName()];
                 $output = "블럭을 되돌리는 중이에요";
-                $this->redoBlock(
-                    new Position(\min($data[0]->x, $data[1]->x), \min($data[0]->y, $data[1]->y), \min($data[0]->z, $data[1]->z), $data[0]->level),
-                    new Position(\max($data[0]->x, $data[1]->x), \max($data[0]->y, $data[1]->y), \max($data[0]->z, $data[1]->z), $data[0]->level)
-                );
+                $this->redoBlock($this->getMinPos($sender), $this->getMaxPos($sender));
                 break;
             case "/cut":
-                if(!isset($this->pos[$sender->getName()]) || \count($this->pos[$sender->getName()]) < 2){
+                if(!$this->canEditBlock($sender)){
                     $output = "지역을 올바르게 설정해주세요";
                     break;
                 }
-                $data = $this->pos[$sender->getName()];
                 $output = "블럭을 잘라내는 중이에요";
-                $this->cutBlock(
-                    new Position(\min($data[0]->x, $data[1]->x), \min($data[0]->y, $data[1]->y), \min($data[0]->z, $data[1]->z), $data[0]->level),
-                    new Position(\max($data[0]->x, $data[1]->x), \max($data[0]->y, $data[1]->y), \max($data[0]->z, $data[1]->z), $data[0]->level),
-                    $sender
-                );
+                $this->cutBlock($this->getMinPos($sender), $this->getMaxPos($sender), $sender);
                 break;
             case "/copy":
                 if(!$this->canEditBlock($sender)){
                     $output = "지역을 올바르게 설정해주세요";
                     break;
                 }
-                $data = $this->pos[$sender->getName()];
                 $output = "블럭을 복사중이에요";
-                $this->copyBlock(
-                    new Position(\min($data[0]->x, $data[1]->x), \min($data[0]->y, $data[1]->y), \min($data[0]->z, $data[1]->z), $data[0]->level),
-                    new Position(\max($data[0]->x, $data[1]->x), \max($data[0]->y, $data[1]->y), \max($data[0]->z, $data[1]->z), $data[0]->level),
-                    $sender
-                );
+                $this->copyBlock($this->getMinPos($sender), $this->getMaxPos($sender), $sender);
                 break;
             case "/paste":
                 $output = "블럭 붙여넣기를 시작했어요";
