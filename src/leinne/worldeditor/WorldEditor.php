@@ -204,7 +204,7 @@ class WorldEditor extends PluginBase implements Listener{
         while(\true){
             if($count < $this->limit){
                 $before = $spos->level->getBlockAt($x, $y, $z);
-                if($before->getId() !== $block->getId() or $before->getDamage() !== $block->getDamage()){
+                if($before->getId() !== $block->getId() || $before->getDamage() !== $block->getDamage()){
                     ++$count;
                     $this->saveUndo($before);
                     $this->set($block, $before);
@@ -222,6 +222,7 @@ class WorldEditor extends PluginBase implements Listener{
                 $this->getScheduler()->scheduleDelayedTask(new ClosureTask(function() use($spos, $epos, $block, $x, $y, $z){
                     $this->setBlock($spos, $epos, $block, $x, $y, $z);
                 }), $this->tick);
+                break;
             }
         }
     }
@@ -252,6 +253,7 @@ class WorldEditor extends PluginBase implements Listener{
                 $this->getScheduler()->scheduleDelayedTask(new ClosureTask(function() use($spos, $epos, $block, $target, $checkDamage, $x, $y, $z){
                     $this->replaceBlock($spos, $epos, $block, $target, $checkDamage, $x, $y, $z);
                 }), $this->tick);
+                break;
             }
         }
     }
@@ -284,6 +286,7 @@ class WorldEditor extends PluginBase implements Listener{
                 $this->getScheduler()->scheduleDelayedTask(new ClosureTask(function() use($spos, $epos, $x, $y, $z){
                     $this->undoBlock($spos, $epos, $x, $y, $z);
                 }), $this->tick);
+                break;
             }
         }
     }
@@ -316,6 +319,7 @@ class WorldEditor extends PluginBase implements Listener{
                 $this->getScheduler()->scheduleDelayedTask(new ClosureTask(function() use($spos, $epos, $x, $y, $z){
                     $this->redoBlock($spos, $epos, $x, $y, $z);
                 }), $this->tick);
+                break;
             }
         }
     }
@@ -354,6 +358,7 @@ class WorldEditor extends PluginBase implements Listener{
                 $this->getScheduler()->scheduleDelayedTask(new ClosureTask(function() use($spos, $epos, $player, $x, $y, $z){
                     $this->cutBlock($spos, $epos, $player, $x, $y, $z);
                 }), $this->tick);
+                break;
             }
         }
     }
@@ -398,6 +403,7 @@ class WorldEditor extends PluginBase implements Listener{
                 $this->getScheduler()->scheduleDelayedTask(new ClosureTask(function() use($player, $copy){
                     $this->pasteBlock($player, $copy);
                 }), $this->tick);
+                break;
             }
         }
     }
