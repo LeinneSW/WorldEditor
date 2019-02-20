@@ -494,8 +494,13 @@ class WorldEditor extends PluginBase implements Listener{
                     $output = "지역을 올바르게 설정해주세요";
                     break;
                 }
-                $output = "블럭을 설정중이에요";
-                $this->setBlock($this->getMinPos($sender), $this->getMaxPos($sender), ItemFactory::fromString($sub[0])->getBlock());
+                try{
+                    $output = "블럭을 설정중이에요";
+                    $block = ItemFactory::fromString($sub[0])->getBlock();
+                    $this->setBlock($this->getMinPos($sender), $this->getMaxPos($sender), $block);
+                }catch(\Exception $e){
+                    $output = "존재하지 않는 블럭이에요";
+                }
                 break;
             case "/replace":
                 if(\count($sub) < 2){
@@ -506,8 +511,14 @@ class WorldEditor extends PluginBase implements Listener{
                     $output = "지역을 올바르게 설정해주세요";
                     break;
                 }
-                $output = "블럭을 변경하는중이에요";
-                $this->replaceBlock($this->getMinPos($sender), $this->getMaxPos($sender), ItemFactory::fromString($sub[0])->getBlock(), ItemFactory::fromString($sub[1])->getBlock(), ($sub[2] ?? "") === "true");
+                try{
+                    $output = "블럭을 변경하는중이에요";
+                    $source = ItemFactory::fromString($sub[0])->getBlock();
+                    $target = ItemFactory::fromString($sub[1])->getBlock();
+                    $this->replaceBlock($this->getMinPos($sender), $this->getMaxPos($sender), $source, $target, ($sub[2] ?? "") === "true");
+                }catch(\Exception $e){
+                    $output = "존재하지 않는 블럭이에요";
+                }
                 break;
             case "/undo":
                 if(!$this->canEditBlock($sender)){
