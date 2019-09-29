@@ -3,7 +3,7 @@ name: WorldEditor
 main: leinne\worldeditor\WorldEditor
 version: 2.0.0
 author: LeinneSW
-api: ["4.0.0"]
+api: 4.0.0
 
 commands:
  /wand:
