@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace leinne\worldeditor;
 
 use pocketmine\block\Block;
-use pocketmine\block\BlockFactory;
 use pocketmine\block\BlockLegacyIds;
 use pocketmine\block\tile\Chest;
 use pocketmine\block\tile\Tile;
+use pocketmine\block\VanillaBlocks;
 use pocketmine\command\Command;
 use pocketmine\command\CommandSender;
 use pocketmine\event\block\BlockBreakEvent;
@@ -37,6 +37,7 @@ class WorldEditor extends PluginBase implements Listener{
     /** @var Position[][] */
     private $pos = [];
 
+    /** @var Block[][] */
     private $copy = [], $undo = [], $redo = [];
 
     public static function getInstance() : WorldEditor{
@@ -329,7 +330,7 @@ class WorldEditor extends PluginBase implements Listener{
         $y = $y ?? $spos->y;
         $z = $z ?? $spos->z;
 
-        $air = BlockFactory::get(BlockLegacyIds::AIR);
+        $air = VanillaBlocks::AIR();
         while(true){
             if($count < $this->limit){
                 $block = $player->getWorld()->getBlockAt($x, $y, $z);
@@ -371,6 +372,10 @@ class WorldEditor extends PluginBase implements Listener{
         }
     }
 
+    /**
+     * @param Player $player
+     * @param Block[]|null $copy
+     */
     public function pasteBlock(Player $player, ?array $copy = null) : void{
         if($player->isClosed() || !$player->getPosition()->isValid()){
             return;
@@ -387,10 +392,11 @@ class WorldEditor extends PluginBase implements Listener{
             if($count++ < $this->limit){
                 if(($block = array_pop($copy)) !== null){
                     $block = clone $block;
-                    $block->x += (int) floor($pos->x);
-                    $block->y += (int) floor($pos->y);
-                    $block->z += (int) floor($pos->z);
-                    $this->saveUndo($player->getWorld()->getBlock($block), $block);
+                    $blockPos = $block->getPos();
+                    $blockPos->x += (int) floor($pos->x);
+                    $blockPos->y += (int) floor($pos->y);
+                    $blockPos->z += (int) floor($pos->z);
+                    $this->saveUndo($player->getWorld()->getBlock($blockPos));
                     $this->set($block);
                 }else{
                     break;
@@ -538,6 +544,7 @@ class WorldEditor extends PluginBase implements Listener{
                     break;
                 }
                 $output = "블럭을 잘라내는 중이에요";
+                $this->copy[$sender->getName()] = [];
                 $this->cutBlock($this->getMinPos($sender), $this->getMaxPos($sender), $sender);
                 break;
             case "/copy":
@@ -546,6 +553,7 @@ class WorldEditor extends PluginBase implements Listener{
                     break;
                 }
                 $output = "블럭을 복사중이에요";
+                $this->copy[$sender->getName()] = [];
                 $this->copyBlock($this->getMinPos($sender), $this->getMaxPos($sender), $sender);
                 break;
             case "/paste":
