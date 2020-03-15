@@ -396,7 +396,8 @@ class WorldEditor extends PluginBase implements Listener{
                     $blockPos->x += (int) floor($pos->x);
                     $blockPos->y += (int) floor($pos->y);
                     $blockPos->z += (int) floor($pos->z);
-                    $this->saveUndo($player->getWorld()->getBlock($blockPos));
+                    $blockPos->level = $player->getWorld();
+                    $this->saveUndo($blockPos->level->getBlock($blockPos));
                     $this->set($block);
                 }else{
                     break;
