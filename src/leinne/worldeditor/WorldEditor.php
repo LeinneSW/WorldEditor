@@ -182,14 +182,15 @@ class WorldEditor extends PluginBase implements Listener{
             $block->position($pos->world, $pos->x, $pos->y, $pos->z);
         }
 
-        $tile = $block->getPos()->world->getTile($block->getPos());
+        $world = $block->getPos()->world;
+        $tile = $world->getTile($block->getPos());
         if($tile instanceof Chest){
             $tile->unpair();
         }
         if($tile instanceof Tile){
             $tile->close();
         }
-        $block->getPos()->world->setBlock($block->getPos(), $block, false);
+        $world->setBlock($block->getPos(), $block, false);
     }
 
     public function setBlock(Position $spos, Position $epos, Block $block, ?int $x = null, ?int $y = null, ?int $z = null) : void{
@@ -396,7 +397,7 @@ class WorldEditor extends PluginBase implements Listener{
                     $blockPos->x += (int) floor($pos->x);
                     $blockPos->y += (int) floor($pos->y);
                     $blockPos->z += (int) floor($pos->z);
-                    $blockPos->level = $player->getWorld();
+                    $blockPos->world = $player->getWorld();
                     $this->saveUndo($blockPos->level->getBlock($blockPos));
                     $this->set($block);
                 }else{
