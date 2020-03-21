@@ -16,6 +16,7 @@ use pocketmine\event\Listener;
 use pocketmine\event\player\PlayerInteractEvent;
 use pocketmine\item\Item;
 use pocketmine\item\ItemFactory;
+use pocketmine\math\Math;
 use pocketmine\math\Vector3;
 use pocketmine\player\Player;
 use pocketmine\plugin\PluginBase;
@@ -169,6 +170,7 @@ class WorldEditor extends PluginBase implements Listener{
         $blockPos->x = $pos->x;
         $blockPos->y = $pos->y;
         $blockPos->z = $pos->z;
+        $blockPos->world = $player->getWorld();
         $this->copy[$player->getName()][] = $block;
         return true;
     }
@@ -375,9 +377,10 @@ class WorldEditor extends PluginBase implements Listener{
 
     /**
      * @param Player $player
+     * @param Position|null $pos
      * @param Block[]|null $copy
      */
-    public function pasteBlock(Player $player, ?array $copy = null) : void{
+    public function pasteBlock(Player $player, ?Position $pos = null, ?array $copy = null) : void{
         if($player->isClosed() || !$player->getPosition()->isValid()){
             return;
         }
@@ -387,6 +390,9 @@ class WorldEditor extends PluginBase implements Listener{
         }
 
         $pos = $player->getPosition();
+        $pos->x = Math::floorFloat($pos->x);
+        $pos->y = (int) floor($pos->y);
+        $pos->z = Math::floorFloat($pos->z);
         $copy = $copy ?? $this->copy[$player->getName()];
         $count = 0;
         while(true){
@@ -394,18 +400,18 @@ class WorldEditor extends PluginBase implements Listener{
                 if(($block = array_pop($copy)) !== null){
                     $block = clone $block;
                     $blockPos = $block->getPos();
-                    $blockPos->x += (int) floor($pos->x);
-                    $blockPos->y += (int) floor($pos->y);
-                    $blockPos->z += (int) floor($pos->z);
-                    $blockPos->world = $player->getWorld();
-                    $this->saveUndo($blockPos->world->getBlock($blockPos));
+                    $blockPos->x += $pos->x;
+                    $blockPos->y += $pos->y;
+                    $blockPos->z += $pos->z;
+                    $blockPos->world = $pos->world;
+                    $this->saveUndo($pos->world->getBlock($blockPos));
                     $this->set($block);
                 }else{
                     break;
                 }
             }else{
-                $this->getScheduler()->scheduleDelayedTask(new ClosureTask(function(int $unused) use($player, $copy) : void{
-                    $this->pasteBlock($player, $copy);
+                $this->getScheduler()->scheduleDelayedTask(new ClosureTask(function(int $unused) use($player, $pos, $copy) : void{
+                    $this->pasteBlock($player, $pos, $copy);
                 }), $this->tick);
                 break;
             }
