@@ -389,10 +389,13 @@ class WorldEditor extends PluginBase implements Listener{
             return;
         }
 
-        $pos = $player->getPosition();
-        $pos->x = Math::floorFloat($pos->x);
-        $pos->y = (int) floor($pos->y);
-        $pos->z = Math::floorFloat($pos->z);
+        if($pos === null){
+            $pos = $player->getPosition();
+            $pos->x = Math::floorFloat($pos->x);
+            $pos->y = (int) floor($pos->y);
+            $pos->z = Math::floorFloat($pos->z);
+        }
+
         $copy = $copy ?? $this->copy[$player->getName()];
         $count = 0;
         while(true){
