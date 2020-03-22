@@ -21,7 +21,6 @@ use pocketmine\math\Vector3;
 use pocketmine\player\Player;
 use pocketmine\plugin\PluginBase;
 use pocketmine\scheduler\ClosureTask;
-use pocketmine\utils\TextFormat;
 use pocketmine\world\Position;
 
 class WorldEditor extends PluginBase implements Listener{
@@ -61,11 +60,6 @@ class WorldEditor extends PluginBase implements Listener{
         $this->tool = ItemFactory::fromString($data["tool"] ?? "IRON_HOE");
 
         $this->getServer()->getPluginManager()->registerEvents($this, $this);
-        $this->getServer()->getLogger()->info(TextFormat::GOLD . "[WorldEditor]플러그인이 활성화 되었습니다");
-    }
-
-    public function onDisable() : void{
-        $this->getServer()->getLogger()->info(TextFormat::GOLD . "[WorldEditor]플러그인이 비활성화 되었습니다");
     }
 
     public function canEditBlock(Player $player) : bool{
