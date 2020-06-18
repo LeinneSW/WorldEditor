@@ -15,7 +15,8 @@ use pocketmine\event\block\BlockBreakEvent;
 use pocketmine\event\Listener;
 use pocketmine\event\player\PlayerInteractEvent;
 use pocketmine\item\Item;
-use pocketmine\item\ItemFactory;
+use pocketmine\item\LegacyStringToItemParser;
+use pocketmine\item\VanillaItems;
 use pocketmine\math\Math;
 use pocketmine\math\Vector3;
 use pocketmine\player\Player;
@@ -57,7 +58,12 @@ class WorldEditor extends PluginBase implements Listener{
         if(isset($data["limit-block"]) && is_numeric($data["limit-block"])){
             $this->limit = (int) max($data["limit-block"], 1);
         }
-        $this->tool = ItemFactory::fromString($data["tool"] ?? "IRON_HOE");
+
+        try{
+            $this->tool = LegacyStringToItemParser::getInstance()->parse($data["tool"] ?? "");
+        }catch(\Exception $e){
+            $this->tool = VanillaItems::IRON_HOE();
+        }
 
         $this->getServer()->getPluginManager()->registerEvents($this, $this);
     }
@@ -503,7 +509,7 @@ class WorldEditor extends PluginBase implements Listener{
                 }
                 try{
                     $output = "블럭을 설정중이에요";
-                    $block = ItemFactory::fromString($sub[0])->getBlock();
+                    $block = LegacyStringToItemParser::getInstance()->parse($sub[0])->getBlock();
                     $this->setBlock($this->getMinPos($sender), $this->getMaxPos($sender), $block);
                 }catch(\Exception $e){
                     $output = "존재하지 않는 블럭이에요";
@@ -520,8 +526,8 @@ class WorldEditor extends PluginBase implements Listener{
                 }
                 try{
                     $output = "블럭을 변경하는중이에요";
-                    $source = ItemFactory::fromString($sub[0])->getBlock();
-                    $target = ItemFactory::fromString($sub[1])->getBlock();
+                    $source = LegacyStringToItemParser::getInstance()->parse($sub[0])->getBlock();
+                    $target = LegacyStringToItemParser::getInstance()->parse($sub[1])->getBlock();
                     $this->replaceBlock($this->getMinPos($sender), $this->getMaxPos($sender), $source, $target, ($sub[2] ?? "") === "true");
                 }catch(\Exception $e){
                     $output = "존재하지 않는 블럭이에요";
