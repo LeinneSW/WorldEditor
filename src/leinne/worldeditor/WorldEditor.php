@@ -218,7 +218,7 @@ class WorldEditor extends PluginBase implements Listener{
                     }
                 }
             }else{
-                $this->getScheduler()->scheduleDelayedTask(new ClosureTask(function(int $unused) use($spos, $epos, $block, $x, $y, $z) : void{
+                $this->getScheduler()->scheduleDelayedTask(new ClosureTask(function() use($spos, $epos, $block, $x, $y, $z) : void{
                     $this->setBlock($spos, $epos, $block, $x, $y, $z);
                 }), $this->tick);
                 break;
@@ -249,7 +249,7 @@ class WorldEditor extends PluginBase implements Listener{
                     }
                 }
             }else{
-                $this->getScheduler()->scheduleDelayedTask(new ClosureTask(function(int $unused) use($spos, $epos, $block, $target, $checkDamage, $x, $y, $z) : void{
+                $this->getScheduler()->scheduleDelayedTask(new ClosureTask(function() use($spos, $epos, $block, $target, $checkDamage, $x, $y, $z) : void{
                     $this->replaceBlock($spos, $epos, $block, $target, $checkDamage, $x, $y, $z);
                 }), $this->tick);
                 break;
@@ -282,7 +282,7 @@ class WorldEditor extends PluginBase implements Listener{
                     }
                 }
             }else{
-                $this->getScheduler()->scheduleDelayedTask(new ClosureTask(function(int $unused) use($spos, $epos, $x, $y, $z) : void{
+                $this->getScheduler()->scheduleDelayedTask(new ClosureTask(function() use($spos, $epos, $x, $y, $z) : void{
                     $this->undoBlock($spos, $epos, $x, $y, $z);
                 }), $this->tick);
                 break;
@@ -315,7 +315,7 @@ class WorldEditor extends PluginBase implements Listener{
                     }
                 }
             }else{
-                $this->getScheduler()->scheduleDelayedTask(new ClosureTask(function(int $unused) use($spos, $epos, $x, $y, $z) : void{
+                $this->getScheduler()->scheduleDelayedTask(new ClosureTask(function() use($spos, $epos, $x, $y, $z) : void{
                     $this->redoBlock($spos, $epos, $x, $y, $z);
                 }), $this->tick);
                 break;
@@ -354,7 +354,7 @@ class WorldEditor extends PluginBase implements Listener{
                     }
                 }
             }else{
-                $this->getScheduler()->scheduleDelayedTask(new ClosureTask(function(int $unused) use($spos, $epos, $player, $x, $y, $z) : void{
+                $this->getScheduler()->scheduleDelayedTask(new ClosureTask(function() use($spos, $epos, $player, $x, $y, $z) : void{
                     $this->cutBlock($spos, $epos, $player, $x, $y, $z);
                 }), $this->tick);
                 break;
@@ -413,7 +413,7 @@ class WorldEditor extends PluginBase implements Listener{
                     break;
                 }
             }else{
-                $this->getScheduler()->scheduleDelayedTask(new ClosureTask(function(int $unused) use($player, $pos, $copy) : void{
+                $this->getScheduler()->scheduleDelayedTask(new ClosureTask(function() use($player, $pos, $copy) : void{
                     $this->pasteBlock($player, $pos, $copy);
                 }), $this->tick);
                 break;
