@@ -537,7 +537,7 @@ class WorldEditor extends PluginBase implements Listener{
                 break;
             case "/replace":
                 if(count($sub) < 2){
-                    $output = "사용법: //replace <선택할 블럭> <바꿀 블럭> [<대미지 체크여부(true|false)>]";
+                    $output = "사용법: //replace <선택할 블럭> <바꿀 블럭> [<meta 체크(true|false)>]";
                     break;
                 }
                 if(!$this->canEditBlock($sender)){
