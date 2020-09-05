@@ -7,34 +7,34 @@ api: 4.0.0
 
 commands:
  /wand:
-  usage: ""
+  description: "완드 지급 명령어"
   permission: worldeditor.command.givewand
  /pos1:
-  usage: ""
+  description: "pos1 설정 명령어"
   permission: worldeditor.command.setpos
  /pos2:
-  usage: ""
+  description: "pos2 설정 명령어"
   permission: worldeditor.command.setpos
  /set:
-  usage: ""
+  description: "블럭 전체 변경 명령어"
   permission: worldeditor.command.setblock
  /replace:
-  usage: ""
+  description: "특정 블럭 교체 명령어"
   permission: worldeditor.command.replaceblock
  /undo:
-  usage: ""
+  description: "블럭 교체 복구 명령어"
   permission: worldeditor.command.undoblock
  /redo:
-  usage: ""
+  description: "블럭 교체 복구 재실행 명령어"
   permission: worldeditor.command.redoblock
  /copy:
-  usage: ""
+  description: "블럭 전체 복사 명령어"
   permission: worldeditor.command.copyblock
  /paste:
-  usage: ""
+  description: "블럭 붙여넣기 명령어"
   permission: worldeditor.command.pasteblock
  /cut:
-  usage: ""
+  description: "블럭 잘라내기 명령어"
   permission: worldeditor.command.cutblock
 permissions:
  worldeditor:

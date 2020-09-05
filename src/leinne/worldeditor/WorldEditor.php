@@ -184,15 +184,21 @@ class WorldEditor extends PluginBase implements Listener{
             $block->position($pos->world, $pos->x, $pos->y, $pos->z);
         }
 
-        $world = $block->getPos()->world;
-        $tile = $world->getTile($block->getPos());
+        $pos = $block->getPos();
+        $tile = $pos->world->getTile($block->getPos());
         if($tile instanceof Chest){
             $tile->unpair();
         }
         if($tile instanceof Tile){
             $tile->close();
         }
-        $world->setBlock($block->getPos(), $block, false);
+
+        $chunk = $pos->world->getChunk($pos->x >> 4, $pos->z >> 4, true);
+        if(!$chunk->isPopulated() || !$chunk->isGenerated()){
+            $chunk->setPopulated();
+            $chunk->setGenerated();
+        }
+        $pos->world->setBlockAt($pos->x, $pos->y, $pos->z, $block, false);
     }
 
     public function setBlock(Position $spos, Position $epos, Block $block, ?int $x = null, ?int $y = null, ?int $z = null) : void{
