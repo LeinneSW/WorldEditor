@@ -26,20 +26,17 @@ use pocketmine\world\Position;
 
 class WorldEditor extends PluginBase implements Listener{
 
-    /** @var WorldEditor */
-    private static $instance;
+    private static WorldEditor $instance;
 
-    /** @var Item */
-    private $tool;
+    private Item $tool;
 
-    /** @var int */
-    private $tick = 2, $limit = 200;
+    private int $tick = 2, $limit = 200;
 
     /** @var Position[][] */
-    private $pos = [];
+    private array $pos = [];
 
     /** @var Block[][] */
-    private $copy = [], $undo = [], $redo = [];
+    private array $copy = [], $undo = [], $redo = [];
 
     public static function getInstance() : WorldEditor{
         return self::$instance;
@@ -134,10 +131,7 @@ class WorldEditor extends PluginBase implements Listener{
         }
 
         $blockPos = $block->getPos();
-        if(!isset($this->undo[$key = "{$blockPos->x}:{$blockPos->y}:{$blockPos->z}:{$blockPos->world->getFolderName()}"])){
-            $this->undo[$key] = [];
-        }
-        $this->undo[$key][] = $block;
+        $this->undo["{$blockPos->x}:{$blockPos->y}:{$blockPos->z}:{$blockPos->world->getFolderName()}"][] = $block;
     }
 
     public function saveRedo(Block $block, ?Position $pos = null) : void{
@@ -150,11 +144,7 @@ class WorldEditor extends PluginBase implements Listener{
         }
 
         $blockPos = $block->getPos();
-        $key = "{$blockPos->x}:{$blockPos->y}:{$blockPos->z}:{$blockPos->world->getFolderName()}";
-        if(!isset($this->redo[$key])){
-            $this->redo[$key] = [];
-        }
-        $this->redo[$key][] = $block;
+        $this->redo["{$blockPos->x}:{$blockPos->y}:{$blockPos->z}:{$blockPos->world->getFolderName()}"][] = $block;
     }
 
     public function saveCopy(Block $block, Vector3 $pos, Player $player) : bool{
@@ -162,15 +152,7 @@ class WorldEditor extends PluginBase implements Listener{
             return false;
         }
 
-        if(!isset($this->copy[$player->getName()])){
-            $this->copy[$player->getName()] = [];
-        }
-
-        $blockPos = $block->getPos();
-        $blockPos->x = $pos->x;
-        $blockPos->y = $pos->y;
-        $blockPos->z = $pos->z;
-        $blockPos->world = $player->getWorld();
+        $block->position($player->getWorld(), $pos->x, $pos->y, $pos->z);
         $this->copy[$player->getName()][] = $block;
         return true;
     }
