@@ -22,11 +22,11 @@ use pocketmine\math\Vector3;
 use pocketmine\player\Player;
 use pocketmine\plugin\PluginBase;
 use pocketmine\scheduler\ClosureTask;
+use pocketmine\utils\SingletonTrait;
 use pocketmine\world\Position;
 
 class WorldEditor extends PluginBase implements Listener{
-
-    private static WorldEditor $instance;
+    use SingletonTrait;
 
     private Item $tool;
 
@@ -37,10 +37,6 @@ class WorldEditor extends PluginBase implements Listener{
 
     /** @var Block[][] */
     private array $copy = [], $undo = [], $redo = [];
-
-    public static function getInstance() : WorldEditor{
-        return self::$instance;
-    }
 
     public function onEnable() : void{
         self::$instance = $this;
