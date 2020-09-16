@@ -23,6 +23,7 @@ use pocketmine\player\Player;
 use pocketmine\plugin\PluginBase;
 use pocketmine\scheduler\ClosureTask;
 use pocketmine\utils\SingletonTrait;
+use pocketmine\utils\TextFormat;
 use pocketmine\world\Position;
 
 class WorldEditor extends PluginBase implements Listener{
@@ -479,9 +480,22 @@ class WorldEditor extends PluginBase implements Listener{
         }
     }
 
+    public function getStringToBlock(string $name) : ?Block{
+        try{
+            $block = VanillaBlocks::{$name}();
+        }catch(\Error $e){
+            try{
+                $block = LegacyStringToItemParser::getInstance()->parse($name)->getBlock();
+            }catch(\InvalidArgumentException $e){
+                return null;
+            }
+        }
+        return $block;
+    }
+
     public function onCommand(CommandSender $sender, Command $cmd, string $label, array $sub) : bool{
         if(!($sender instanceof Player)){
-            $sender->sendMessage("[WorldEditor]인게임에서 이용 가능해요");
+            $sender->sendMessage(TextFormat::RED . "[WorldEditor] 게임 내에서 사용해 주세요");
             return true;
         }
 
@@ -511,12 +525,12 @@ class WorldEditor extends PluginBase implements Listener{
                     $output = "지역을 올바르게 설정해주세요";
                     break;
                 }
-                try{
-                    $output = "블럭을 설정중이에요";
-                    $block = LegacyStringToItemParser::getInstance()->parse($sub[0])->getBlock();
-                    $this->setBlock($this->getMinPos($sender), $this->getMaxPos($sender), $block);
-                }catch(\Exception $e){
+                $block = $this->getStringToBlock($sub[0]);
+                if($block === null){
                     $output = "존재하지 않는 블럭이에요";
+                }else{
+                    $output = "블럭을 설정중이에요";
+                    $this->setBlock($this->getMinPos($sender), $this->getMaxPos($sender), $block);
                 }
                 break;
             case "/replace":
@@ -528,13 +542,13 @@ class WorldEditor extends PluginBase implements Listener{
                     $output = "지역을 올바르게 설정해주세요";
                     break;
                 }
-                try{
-                    $output = "블럭을 변경하는중이에요";
-                    $source = LegacyStringToItemParser::getInstance()->parse($sub[0])->getBlock();
-                    $target = LegacyStringToItemParser::getInstance()->parse($sub[1])->getBlock();
-                    $this->replaceBlock($this->getMinPos($sender), $this->getMaxPos($sender), $source, $target, ($sub[2] ?? "") === "true");
-                }catch(\Exception $e){
+                $source = $this->getStringToBlock($sub[0]);
+                $target = $this->getStringToBlock($sub[1]);
+                if($source === null || $target === null){
                     $output = "존재하지 않는 블럭이에요";
+                }else{
+                    $output = "블럭을 변경하는중이에요";
+                    $this->replaceBlock($this->getMinPos($sender), $this->getMaxPos($sender), $source, $target, ($sub[2] ?? "") === "true");
                 }
                 break;
             case "/undo":
