@@ -71,7 +71,7 @@ class WorldEditor extends PluginBase implements Listener{
         $block = $ev->getBlock();
         $player = $ev->getPlayer();
         if($player->hasPermission("worldeditor.command.setpos") && $ev->getItem()->equals($this->tool)){
-            $ev->setCancelled();
+            $ev->cancel();
             if($ev->getAction() === PlayerInteractEvent::LEFT_CLICK_BLOCK){
                 $pos = $this->setPos($player, 0, $block->getPos());
                 if($pos !== null){
@@ -109,7 +109,7 @@ class WorldEditor extends PluginBase implements Listener{
         $block = $ev->getBlock();
         $player = $ev->getPlayer();
         if($player->hasPermission("worldeditor.command.setpos") && $ev->getItem()->equals($this->tool)){
-            $ev->setCancelled();
+            $ev->cancel();
             $pos = $this->setPos($player, 0, $block->getPos());
             if($pos !== null){
                 $player->sendMessage("[WorldEditor]Pos1 지점을 선택했어요 ({$pos->x}, {$pos->y}, {$pos->z}, {$pos->world->getFolderName()})");
