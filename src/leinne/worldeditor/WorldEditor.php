@@ -172,10 +172,9 @@ class WorldEditor extends PluginBase implements Listener{
             $tile->close();
         }
 
-        $chunk = $pos->world->getChunk($pos->x >> 4, $pos->z >> 4, true);
-        if(!$chunk->isPopulated() || !$chunk->isGenerated()){
+        $chunk = $pos->world->getChunk($pos->x >> 4, $pos->z >> 4);
+        if(!$chunk->isPopulated()){
             $chunk->setPopulated();
-            $chunk->setGenerated();
         }
         $pos->world->setBlockAt($pos->x, $pos->y, $pos->z, $block, false);
     }
