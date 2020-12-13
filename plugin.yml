@@ -37,27 +37,21 @@ commands:
   description: "블럭 잘라내기 명령어"
   permission: worldeditor.command.cutblock
 permissions:
- worldeditor:
-  default: op
-  children:
-    worldeditor.command:
-      default: op
-      children:
-        worldeditor.command.givewand:
-          default: op
-        worldeditor.command.setpos:
-          default: op
-        worldeditor.command.setblock:
-          default: op
-        worldeditor.command.replaceblock:
-          default: op
-        worldeditor.command.undoblock:
-          default: op
-        worldeditor.command.redoblock:
-          default: op
-        worldeditor.command.copyblock:
-          default: op
-        worldeditor.command.pasteblock:
-          default: op
-        worldeditor.command.cutblock:
-          default: op
+  worldeditor.command.givewand:
+    default: op
+  worldeditor.command.setpos:
+    default: op
+  worldeditor.command.setblock:
+    default: op
+  worldeditor.command.replaceblock:
+    default: op
+  worldeditor.command.undoblock:
+    default: op
+  worldeditor.command.redoblock:
+    default: op
+  worldeditor.command.copyblock:
+    default: op
+  worldeditor.command.pasteblock:
+    default: op
+  worldeditor.command.cutblock:
+    default: op
