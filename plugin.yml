@@ -6,37 +6,46 @@ author: LeinneSW
 api: 4.0.0
 
 commands:
- /wand:
-  description: "완드 지급 명령어"
-  permission: worldeditor.command.givewand
- /pos1:
-  description: "pos1 설정 명령어"
-  permission: worldeditor.command.setpos
- /pos2:
-  description: "pos2 설정 명령어"
-  permission: worldeditor.command.setpos
- /set:
-  description: "블럭 전체 변경 명령어"
-  permission: worldeditor.command.setblock
- /replace:
-  description: "특정 블럭 교체 명령어"
-  permission: worldeditor.command.replaceblock
- /undo:
-  description: "블럭 교체 복구 명령어"
-  permission: worldeditor.command.undoblock
- /redo:
-  description: "블럭 교체 복구 재실행 명령어"
-  permission: worldeditor.command.redoblock
- /copy:
-  description: "블럭 전체 복사 명령어"
-  permission: worldeditor.command.copyblock
- /paste:
-  description: "블럭 붙여넣기 명령어"
-  permission: worldeditor.command.pasteblock
- /cut:
-  description: "블럭 잘라내기 명령어"
-  permission: worldeditor.command.cutblock
+  worldedit:
+    description: "월드에딧 도구를 지급합니다"
+    permission: worldeditor.command
+    aliases: [we]
+  /wand:
+    description: "월드에딧 도구를 지급합니다"
+    permission: worldeditor.command.givewand
+  /pos1:
+    description: "첫번째 영역을 설정합니다"
+    permission: worldeditor.command.setpos
+  /pos2:
+    description: "두번째 영역을 설정합니다"
+    permission: worldeditor.command.setpos
+  /set:
+    description: "선택한 영역을 원하는 블럭으로 변경합니다"
+    permission: worldeditor.command.setblock
+  /replace:
+    description: "선택한 영역의 일부 블럭을 원하는 블럭으로 교체합니다"
+    permission: worldeditor.command.replaceblock
+  /sphere:
+    description: "선택한 영역을 원점으로 하는 구를 생성합니다"
+    permission: worldeditor.command.createsphere
+  /undo:
+    description: "선택한 영역을 변경하기 전으로 되돌립니다"
+    permission: worldeditor.command.undoblock
+  /redo:
+    description: "선택한 영역을 이전에 변경했던 상태로 되돌립니다"
+    permission: worldeditor.command.redoblock
+  /copy:
+    description: "선택한 영역을 복사합니다"
+    permission: worldeditor.command.copyblock
+  /paste:
+    description: "복사했던 블럭들을 붙여넣습니다"
+    permission: worldeditor.command.pasteblock
+  /cut:
+    description: "선택한 영역을 잘라냅니다"
+    permission: worldeditor.command.cutblock
 permissions:
+  worldeditor.command:
+    default: op
   worldeditor.command.givewand:
     default: op
   worldeditor.command.setpos:
@@ -44,6 +53,8 @@ permissions:
   worldeditor.command.setblock:
     default: op
   worldeditor.command.replaceblock:
+    default: op
+  worldeditor.command.createsphere:
     default: op
   worldeditor.command.undoblock:
     default: op

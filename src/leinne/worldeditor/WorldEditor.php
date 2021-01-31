@@ -4,9 +4,16 @@ declare(strict_types=1);
 
 namespace leinne\worldeditor;
 
+use leinne\worldeditor\task\CopyBlockTask;
+use leinne\worldeditor\task\CutBlockTask;
+use leinne\worldeditor\task\MakeSphereTask;
+use leinne\worldeditor\task\PasteBlockTask;
+use leinne\worldeditor\task\RedoBlockTask;
+use leinne\worldeditor\task\ReplaceBlockTask;
+use leinne\worldeditor\task\SetBlockTask;
+use leinne\worldeditor\task\UndoBlockTask;
 use pocketmine\block\Block;
 use pocketmine\block\BlockLegacyIds;
-use pocketmine\block\tile\Chest;
 use pocketmine\block\tile\Tile;
 use pocketmine\block\VanillaBlocks;
 use pocketmine\command\Command;
@@ -17,27 +24,26 @@ use pocketmine\event\player\PlayerInteractEvent;
 use pocketmine\item\Item;
 use pocketmine\item\LegacyStringToItemParser;
 use pocketmine\item\VanillaItems;
-use pocketmine\math\Math;
 use pocketmine\math\Vector3;
 use pocketmine\player\Player;
 use pocketmine\plugin\PluginBase;
-use pocketmine\scheduler\ClosureTask;
 use pocketmine\utils\SingletonTrait;
 use pocketmine\utils\TextFormat;
+use pocketmine\world\format\Chunk;
 use pocketmine\world\Position;
 
 class WorldEditor extends PluginBase implements Listener{
     use SingletonTrait;
 
-    private Item $tool;
+    private Item $wand;
 
-    private int $tick = 2, $limit = 200;
+    private int $tick = 2, $blockPerTick = 200;
 
-    /** @var Position[][] */
-    private array $pos = [];
+    /** @var SelectedArea[] */
+    private array $selectedArea = [];
 
     /** @var Block[][] */
-    private array $copy = [], $undo = [], $redo = [];
+    public array $copy = [], $undo = [], $redo = [];
 
     public function onEnable() : void{
         self::$instance = $this;
@@ -45,77 +51,43 @@ class WorldEditor extends PluginBase implements Listener{
         $this->saveDefaultConfig();
         $data = $this->getConfig()->getAll();
 
-        if(isset($data["update-tick"]) && is_numeric($data["update-tick"])){
-            $this->tick = (int) max($data["update-tick"], 1);
+        $updateTick = $data["update-tick"] ?? null;
+        if(is_numeric($updateTick)){
+            $this->tick = max((int) $updateTick, 1);
         }
 
-        if(isset($data["limit-block"]) && is_numeric($data["limit-block"])){
-            $this->limit = (int) max($data["limit-block"], 1);
+        $blockPerTick = $data["block-per-tick"] ?? $data["limit-block"] ?? null;
+        if(is_numeric($blockPerTick)){
+            $this->blockPerTick = max((int) $blockPerTick, 1);
         }
 
         try{
-            $this->tool = LegacyStringToItemParser::getInstance()->parse($data["tool"] ?? "");
+            $this->wand = LegacyStringToItemParser::getInstance()->parse($data["wand"] ?? $data["tool"] ?? "");
         }catch(\Exception $e){
-            $this->tool = VanillaItems::IRON_HOE();
+            $this->wand = VanillaItems::WOODEN_AXE();
         }
 
         $this->getServer()->getPluginManager()->registerEvents($this, $this);
     }
 
-    public function canEditBlock(Player $player) : bool{
-        $data = $this->pos[$player->getName()] ?? [];
-        return count($data) === 2 && $data[0]->world === $data[1]->world;
+    public function getWand() : Item{
+        return clone $this->wand;
     }
 
-    public function onPlayerInteractEvent(PlayerInteractEvent $ev) : void{
-        $block = $ev->getBlock();
-        $player = $ev->getPlayer();
-        if($player->hasPermission("worldeditor.command.setpos") && $ev->getItem()->equals($this->tool)){
-            $ev->cancel();
-            if($ev->getAction() === PlayerInteractEvent::LEFT_CLICK_BLOCK){
-                $pos = $this->setPos($player, 0, $block->getPos());
-                if($pos !== null){
-                    $player->sendMessage("[WorldEditor]Pos1 지점을 선택했어요 ({$pos->x}, {$pos->y}, {$pos->z}, {$pos->world->getFolderName()})");
-                }
-            }else{
-                $pos = $this->setPos($player, 1, $block->getPos());
-                if($pos !== null){
-                    $player->sendMessage("[WorldEditor]Pos2 지점을 선택했어요 ({$pos->x}, {$pos->y}, {$pos->z}, {$pos->world->getFolderName()})");
-                }
-            }
-        }
+    public function getUpdateTick() : int{
+        return $this->tick;
     }
 
-    public function getMinPos(Player $player) : Position{
-        $data = $this->pos[$player->getName()];
-        return new Position(min($data[0]->x, $data[1]->x), min($data[0]->y, $data[1]->y), min($data[0]->z, $data[1]->z), $data[0]->world);
+    public function getBlockPerTick() : int{
+        return $this->blockPerTick;
     }
 
-    public function getMaxPos(Player $player) : Position{
-        $data = $this->pos[$player->getName()];
-        return new Position(max($data[0]->x, $data[1]->x), max($data[0]->y, $data[1]->y), max($data[0]->z, $data[1]->z), $data[0]->world);
+    public function getPosHash(Position $pos) : string{
+        return "{$pos->x}:{$pos->y}:{$pos->z}:{$pos->world->getFolderName()}";
     }
 
-    public function setPos(Player $player, int $index, Position $pos) : ?Position{
-        if($index > 1 || $index < 0 || !$pos->isValid()){
-            return null;
-        }
-
-        $floor = $pos->floor();
-        return $this->pos[$player->getName()][$index] = new Position($floor->x, $floor->y, $floor->z, $pos->world);
-    }
-
-    public function onBlockBreakEvent(BlockBreakEvent $ev) : void{
-        $block = $ev->getBlock();
-        $player = $ev->getPlayer();
-        if($player->hasPermission("worldeditor.command.setpos") && $ev->getItem()->equals($this->tool)){
-            $ev->cancel();
-            $pos = $this->setPos($player, 0, $block->getPos());
-            if($pos !== null){
-                $player->sendMessage("[WorldEditor]Pos1 지점을 선택했어요 ({$pos->x}, {$pos->y}, {$pos->z}, {$pos->world->getFolderName()})");
-            }
-            return;
-        }
+    public function getSelectedArea(Player $player) : SelectedArea{
+        return $this->selectedArea[spl_object_hash($player)] ??= new SelectedArea();
     }
 
     public function saveUndo(Block $block, ?Position $pos = null) : void{
@@ -126,9 +98,7 @@ class WorldEditor extends PluginBase implements Listener{
         if($pos !== null){
             $block->position($pos->world, $pos->x, $pos->y, $pos->z);
         }
-
-        $blockPos = $block->getPos();
-        $this->undo["{$blockPos->x}:{$blockPos->y}:{$blockPos->z}:{$blockPos->world->getFolderName()}"][] = $block;
+        $this->undo[$this->getPosHash($block->getPos())][] = $block;
     }
 
     public function saveRedo(Block $block, ?Position $pos = null) : void{
@@ -139,12 +109,10 @@ class WorldEditor extends PluginBase implements Listener{
         if($pos !== null){
             $block->position($pos->world, $pos->x, $pos->y, $pos->z);
         }
-
-        $blockPos = $block->getPos();
-        $this->redo["{$blockPos->x}:{$blockPos->y}:{$blockPos->z}:{$blockPos->world->getFolderName()}"][] = $block;
+        $this->redo[$this->getPosHash($block->getPos())][] = $block;
     }
 
-    public function saveCopy(Block $block, Vector3 $pos, Player $player) : bool{
+    public function saveCopy(Player $player, Block $block, Vector3 $pos) : bool{
         if($block->getId() === BlockLegacyIds::AIR){
             return false;
         }
@@ -154,8 +122,9 @@ class WorldEditor extends PluginBase implements Listener{
         return true;
     }
 
-    public function set(Block $block, ?Position $pos = null) : void{
-        if(!$block->getPos()->isValid() && ($pos === null || !$pos->isValid())){
+    public function setBlock(Block $block, ?Position $pos = null) : void{
+        $pos ??= $block->getPos();
+        if($pos === null || !$pos->isValid()){
             return;
         }
 
@@ -163,320 +132,15 @@ class WorldEditor extends PluginBase implements Listener{
             $block->position($pos->world, $pos->x, $pos->y, $pos->z);
         }
 
-        $pos = $block->getPos();
         $tile = $pos->world->getTile($block->getPos());
-        if($tile instanceof Chest){
-            $tile->unpair();
-        }
         if($tile instanceof Tile){
             $tile->close();
         }
 
-        $chunk = $pos->world->loadChunk($pos->x >> 4, $pos->z >> 4);
-        if(!$chunk->isPopulated()){
-            $chunk->setPopulated();
+        if($pos->world->loadChunk($pos->x >> 4, $pos->z >> 4) === null){
+            $pos->world->setChunk($pos->x >> 4, $pos->z >> 4, new Chunk());
         }
         $pos->world->setBlockAt($pos->x, $pos->y, $pos->z, $block, false);
-    }
-
-    public function setBlock(Position $spos, Position $epos, Block $block, ?int $x = null, ?int $y = null, ?int $z = null) : void{
-        $count = 0;
-        $x = $x ?? $spos->x;
-        $y = $y ?? $spos->y;
-        $z = $z ?? $spos->z;
-        while(true){
-            if($count < $this->limit){
-                $before = $spos->world->getBlockAt($x, $y, $z);
-                if($before->getId() !== $block->getId() || $before->getMeta() !== $block->getMeta()){
-                    ++$count;
-                    $this->saveUndo($before);
-                    $this->set($block, $before->getPos());
-                }
-                if(++$x > $epos->x){
-                    $x = $spos->x;
-                    if(++$z > $epos->z){
-                        $z = $spos->z;
-                        if(++$y > $epos->y){
-                            break;
-                        }
-                    }
-                }
-            }else{
-                $this->getScheduler()->scheduleDelayedTask(new ClosureTask(function() use($spos, $epos, $block, $x, $y, $z) : void{
-                    $this->setBlock($spos, $epos, $block, $x, $y, $z);
-                }), $this->tick);
-                break;
-            }
-        }
-    }
-
-    public function replaceBlock(Position $spos, Position $epos, Block $block, Block $target, bool $checkDamage, ?int $x = null, ?int $y = null, ?int $z = null) : void{
-        $count = 0;
-        $x = $x ?? $spos->x;
-        $y = $y ?? $spos->y;
-        $z = $z ?? $spos->z;
-        while(true){
-            if($count < $this->limit){
-                $before = $spos->world->getBlockAt($x, $y, $z);
-                if($before->getId() === $block->getId() && (!$checkDamage || $before->getMeta() === $block->getMeta())){
-                    ++$count;
-                    $this->saveUndo($before);
-                    $this->set($target, $before->getPos());
-                }
-                if(++$x > $epos->x){
-                    $x = $spos->x;
-                    if(++$z > $epos->z){
-                        $z = $spos->z;
-                        if(++$y > $epos->y){
-                            break;
-                        }
-                    }
-                }
-            }else{
-                $this->getScheduler()->scheduleDelayedTask(new ClosureTask(function() use($spos, $epos, $block, $target, $checkDamage, $x, $y, $z) : void{
-                    $this->replaceBlock($spos, $epos, $block, $target, $checkDamage, $x, $y, $z);
-                }), $this->tick);
-                break;
-            }
-        }
-    }
-
-    public function undoBlock(Position $spos, Position $epos, ?int $x = null, ?int $y = null, ?int $z = null) : void{
-        $count = 0;
-        $x = $x ?? $spos->x;
-        $y = $y ?? $spos->y;
-        $z = $z ?? $spos->z;
-        while(true){
-            if($count < $this->limit){
-                $key = "$x:$y:$z:{$spos->world->getFolderName()}";
-                if(isset($this->undo[$key]) && count($this->undo[$key]) > 0){
-                    ++$count;
-                    $block = array_pop($this->undo[$key]);
-                    $this->saveRedo($spos->world->getBlockAt($x, $y, $z));
-                    $this->set($block);
-                }
-                if(++$x > $epos->x){
-                    $x = $spos->x;
-                    if(++$z > $epos->z){
-                        $z = $spos->z;
-                        if(++$y > $epos->y){
-                            break;
-                        }
-                    }
-                }
-            }else{
-                $this->getScheduler()->scheduleDelayedTask(new ClosureTask(function() use($spos, $epos, $x, $y, $z) : void{
-                    $this->undoBlock($spos, $epos, $x, $y, $z);
-                }), $this->tick);
-                break;
-            }
-        }
-    }
-
-    public function redoBlock(Position $spos, Position $epos, ?int $x = null, ?int $y = null, ?int $z = null) : void{
-        $count = 0;
-        $x = $x ?? $spos->x;
-        $y = $y ?? $spos->y;
-        $z = $z ?? $spos->z;
-        while(true){
-            if($count < $this->limit){
-                $key = "$x:$y:$z:{$spos->world->getFolderName()}";
-                if(isset($this->redo[$key]) && count($this->redo[$key]) > 0){
-                    ++$count;
-                    $block = array_pop($this->redo[$key]);
-                    $this->saveUndo($spos->world->getBlockAt($x, $y, $z));
-                    $this->set($block);
-                }
-                if(++$x > $epos->x){
-                    $x = $spos->x;
-                    if(++$z > $epos->z){
-                        $z = $spos->z;
-                        if(++$y > $epos->y){
-                            break;
-                        }
-                    }
-                }
-            }else{
-                $this->getScheduler()->scheduleDelayedTask(new ClosureTask(function() use($spos, $epos, $x, $y, $z) : void{
-                    $this->redoBlock($spos, $epos, $x, $y, $z);
-                }), $this->tick);
-                break;
-            }
-        }
-    }
-
-    public function cutBlock(Vector3 $spos, Vector3 $epos, Player $player, ?int $x = null, ?int $y = null, ?int $z = null) : void{
-        if($player->isClosed() || !$player->getPosition()->isValid()){
-            return;
-        }
-
-        $count = 0;
-        $x = $x ?? $spos->x;
-        $y = $y ?? $spos->y;
-        $z = $z ?? $spos->z;
-
-        $air = VanillaBlocks::AIR();
-        while(true){
-            if($count < $this->limit){
-                $block = $player->getWorld()->getBlockAt($x, $y, $z);
-                if($block->getId() !== BlockLegacyIds::AIR && $block->getName() !== "Unknown"){
-                    ++$count;
-                    $this->saveCopy($block, new Position($x - $spos->x, $y - $spos->y, $z - $spos->z, $player->getWorld()), $player);
-                    $this->saveUndo($block);
-                    $air->position($player->getWorld(), $x, $y, $z);
-                    $this->set($air);
-                }
-                if(++$x > $epos->x){
-                    $x = $spos->x;
-                    if(++$z > $epos->z){
-                        $z = $spos->z;
-                        if(++$y > $epos->y){
-                            break;
-                        }
-                    }
-                }
-            }else{
-                $this->getScheduler()->scheduleDelayedTask(new ClosureTask(function() use($spos, $epos, $player, $x, $y, $z) : void{
-                    $this->cutBlock($spos, $epos, $player, $x, $y, $z);
-                }), $this->tick);
-                break;
-            }
-        }
-    }
-
-    public function copyBlock(Vector3 $spos, Vector3 $epos, Player $player, ?int $x = null, ?int $y = null, ?int $z = null) : void{
-        if($player->isClosed() || !$player->getPosition()->isValid()){
-            return;
-        }
-
-        $count = 0;
-        $x = $x ?? $spos->x;
-        $y = $y ?? $spos->y;
-        $z = $z ?? $spos->z;
-
-        $limit = $this->limit * 3;
-        while(true){
-            if($count < $limit){
-                $block = $player->getWorld()->getBlockAt($x, $y, $z);
-                if($block->getId() !== BlockLegacyIds::AIR && $block->getName() !== "Unknown"){
-                    ++$count;
-                    $this->saveCopy($player->getWorld()->getBlockAt($x, $y, $z), new Vector3($x - $spos->x, $y - $spos->y, $z - $spos->z), $player);
-                }
-                if(++$x > $epos->x){
-                    $x = $spos->x;
-                    if(++$z > $epos->z){
-                        $z = $spos->z;
-                        if(++$y > $epos->y){
-                            break;
-                        }
-                    }
-                }
-            }else{
-                $this->getScheduler()->scheduleDelayedTask(new ClosureTask(function() use($spos, $epos, $player, $x, $y, $z) : void{
-                    $this->copyBlock($spos, $epos, $player, $x, $y, $z);
-                }), $this->tick);
-                break;
-            }
-        }
-    }
-
-    /**
-     * @param Player $player
-     * @param Position|null $pos
-     * @param Block[]|null $copy
-     */
-    public function pasteBlock(Player $player, ?Position $pos = null, ?array $copy = null) : void{
-        if($player->isClosed() || !$player->getPosition()->isValid()){
-            return;
-        }
-
-        if($copy === null && !isset($this->copy[$player->getName()])){
-            return;
-        }
-
-        if($pos === null){
-            $pos = $player->getPosition();
-            $pos->x = Math::floorFloat($pos->x);
-            $pos->y = (int) floor($pos->y);
-            $pos->z = Math::floorFloat($pos->z);
-        }
-
-        $copy = $copy ?? $this->copy[$player->getName()];
-        $count = 0;
-        while(true){
-            if($count++ < $this->limit){
-                if(($block = array_pop($copy)) !== null){
-                    $block = clone $block;
-                    $blockPos = $block->getPos();
-                    $blockPos->x += $pos->x;
-                    $blockPos->y += $pos->y;
-                    $blockPos->z += $pos->z;
-                    $blockPos->world = $pos->world;
-                    $this->saveUndo($pos->world->getBlock($blockPos));
-                    $this->set($block);
-                }else{
-                    break;
-                }
-            }else{
-                $this->getScheduler()->scheduleDelayedTask(new ClosureTask(function() use($player, $pos, $copy) : void{
-                    $this->pasteBlock($player, $pos, $copy);
-                }), $this->tick);
-                break;
-            }
-        }
-    }
-
-    public function sphereBlock(Position $pos, Block $block, int $radius, bool $filled) : void{
-        $invRadius = 1 / $radius;
-
-        $nextXn = 0;
-        $breakX = false;
-        for($x = 0; $x <= $radius && !$breakX; ++$x){
-            $xn = $nextXn;
-            $nextXn = ($x + 1) * $invRadius;
-            $nextYn = 0;
-            $breakY = false;
-            for($y = 0; $y <= $radius && !$breakY; ++$y){
-                $yn = $nextYn;
-                $nextYn = ($y + 1) * $invRadius;
-                $nextZn = 0;
-                for($z = 0; $z <= $radius; ++$z){
-                    $zn = $nextZn;
-                    $nextXn = ($z + 1) * $invRadius;
-                    $distanceSq = ($xn ** 2) + ($yn ** 2) + ($zn ** 2);
-                    if($distanceSq > 1){
-                        if($z === 0){
-                            if($y === 0){
-                                $breakX = true;
-                                $breakY = true;
-                                break;
-                            }
-                            $breakY = true;
-                            break;
-                        }
-                        break;
-                    }
-
-                    if(
-                        !$filled
-                        && ($nextXn ** 2) + ($yn ** 2) + ($zn ** 2) <= 1
-                        && ($xn ** 2) + ($nextYn ** 2) + ($zn ** 2) <= 1
-                        && ($xn ** 2) + ($yn ** 2) + ($nextZn ** 2) <= 1
-                    ){
-                        continue;
-                    }
-
-                    $this->set($block, Position::fromObject($pos->add($x, $y, $z), $pos->world));
-                    $this->set($block, Position::fromObject($pos->add(-$x, $y, $z), $pos->world));
-                    $this->set($block, Position::fromObject($pos->add($x, -$y, $z), $pos->world));
-                    $this->set($block, Position::fromObject($pos->add($x, $y, -$z), $pos->world));
-                    $this->set($block, Position::fromObject($pos->add(-$x, -$y, $z), $pos->world));
-                    $this->set($block, Position::fromObject($pos->add(-$x, $y, -$z), $pos->world));
-                    $this->set($block, Position::fromObject($pos->add($x, -$y, -$z), $pos->world));
-                    $this->set($block, Position::fromObject($pos->add(-$x, -$y, -$z), $pos->world));
-                }
-            }
-        }
     }
 
     public function getStringToBlock(string $name) : ?Block{
@@ -492,108 +156,201 @@ class WorldEditor extends PluginBase implements Listener{
         return $block;
     }
 
+    /** @priority MONITOR */
+    public function onPlayerInteractEvent(PlayerInteractEvent $ev) : void{
+        $item = $ev->getItem();
+        $block = $ev->getBlock();
+        $player = $ev->getPlayer();
+        if($player->hasPermission("worldeditor.command.setpos") && $ev->getItem()->equals($this->wand, false, false)){
+            $ev->cancel();
+            $selectedArea = $this->getSelectedArea($player);
+            $player->sendMessage($ev->getAction() === PlayerInteractEvent::LEFT_CLICK_BLOCK ?
+                $selectedArea->setFirstPosition($block->getPos(), $item) :
+                $selectedArea->setSecondPosition($block->getPos(), $item)
+            );
+        }
+    }
+
+    /** @priority MONITOR */
+    public function onBlockBreakEvent(BlockBreakEvent $ev) : void{
+        $block = $ev->getBlock();
+        $player = $ev->getPlayer();
+        if($player->hasPermission("worldeditor.command.setpos") && $ev->getItem()->equals($this->wand, false, false)){
+            $ev->cancel();
+            $player->sendMessage($this->getSelectedArea($player)->setFirstPosition($block->getPos()));
+        }
+    }
+
     public function onCommand(CommandSender $sender, Command $cmd, string $label, array $sub) : bool{
         if(!($sender instanceof Player)){
             $sender->sendMessage(TextFormat::RED . "[WorldEditor] 게임 내에서 사용해 주세요");
             return true;
         }
 
-        switch($cmd->getName()){
+        switch($name = $cmd->getName()){
             case "/wand":
-                $output = "월드에딧 도구를 제공했어요";
-                $sender->getInventory()->setItemInHand($this->tool);
+                $sender->getInventory()->setItemInHand($this->wand);
+                $sender->sendMessage(TextFormat::AQUA . "[WorldEditor] 월드에딧 도구를 제공했습니다");
                 break;
             case "/pos1":
-                $pos = $this->setPos($sender, 0, $sender->getPosition());
-                if($pos !== null){
-                    $output = "현재 위치를 Pos1 지점으로 지정했어요 ({$pos->x}, {$pos->y}, {$pos->z}, {$pos->world->getFolderName()})";
-                }
-                break;
             case "/pos2":
-                $pos = $this->setPos($sender, 1, $sender->getPosition());
-                if($pos !== null){
-                    $output = "현재 위치를 Pos2 지점으로 지정했어요 ({$pos->x}, {$pos->y}, {$pos->z}, {$pos->world->getFolderName()})";
-                }
+                $pos = $sender->getPosition();
+                $selectedArea = $this->getSelectedArea($sender);
+                $item = $sender->getInventory()->getItemInHand();
+                $sender->sendMessage($name[4] === "1" ?
+                    $selectedArea->setFirstPosition($pos, $item) :
+                    $selectedArea->setSecondPosition($pos, $item)
+                );
                 break;
             case "/set":
                 if(!isset($sub[0])){
-                    $output = "사용법: //set <블럭>";
+                    $sender->sendMessage("사용법: /set <blockId>");
                     break;
                 }
-                if(!$this->canEditBlock($sender)){
-                    $output = "지역을 올바르게 설정해주세요";
+                $selectedArea = $this->getSelectedArea($sender);
+                if(!$selectedArea->isValid()){
+                    $sender->sendMessage(TextFormat::RED . "[WorldEditor] 먼저 영역을 설정해 주세요");
                     break;
                 }
                 $block = $this->getStringToBlock($sub[0]);
                 if($block === null){
-                    $output = "존재하지 않는 블럭이에요";
+                    $sender->sendMessage(TextFormat::RED . "[WorldEditor] 존재하지 않는 블럭입니다 (blockId: {$sub[0]})");
                 }else{
-                    $output = "블럭을 설정중이에요";
-                    $this->setBlock($this->getMinPos($sender), $this->getMaxPos($sender), $block);
+                    $sender->sendMessage(TextFormat::YELLOW . "[WorldEditor] 블럭 설정을 시작했습니다");
+                    $this->getScheduler()->scheduleTask(new SetBlockTask(
+                        $selectedArea->getMinPosition(),
+                        $selectedArea->getMaxPosition(),
+                        $selectedArea->getWorld(),
+                        $block,
+                        $sender
+                    ));
                 }
                 break;
             case "/replace":
                 if(count($sub) < 2){
-                    $output = "사용법: //replace <선택할 블럭> <바꿀 블럭> [<meta 체크(true|false)>]";
+                    $sender->sendMessage("사용법: //replace <선택할 블럭> <바꿀 블럭> [<meta 체크(true|false)>]");
                     break;
                 }
-                if(!$this->canEditBlock($sender)){
-                    $output = "지역을 올바르게 설정해주세요";
+                $selectedArea = $this->getSelectedArea($sender);
+                if(!$selectedArea->isValid()){
+                    $sender->sendMessage(TextFormat::RED . "[WorldEditor] 먼저 영역을 설정해야 합니다");
                     break;
                 }
                 $source = $this->getStringToBlock($sub[0]);
                 $target = $this->getStringToBlock($sub[1]);
                 if($source === null || $target === null){
-                    $output = "존재하지 않는 블럭이에요";
+                    $sender->sendMessage(TextFormat::RED . "[WorldEditor] 존재하지 않는 블럭입니다 (blockId: {$sub[0]})");
                 }else{
-                    $output = "블럭을 변경하는중이에요";
-                    $this->replaceBlock($this->getMinPos($sender), $this->getMaxPos($sender), $source, $target, ($sub[2] ?? "") === "true");
+                    $sender->sendMessage(TextFormat::YELLOW . "[WorldEditor] 블럭 변경을 시작했습니다");
+                    $this->getScheduler()->scheduleTask(new ReplaceBlockTask(
+                        $selectedArea->getMinPosition(),
+                        $selectedArea->getMaxPosition(),
+                        $selectedArea->getWorld(),
+                        $source,
+                        $target,
+                        ($sub[2] ?? "") === "true",
+                        $sender
+                    ));
                 }
                 break;
             case "/undo":
-                if(!$this->canEditBlock($sender)){
-                    $output = "지역을 올바르게 설정해주세요";
+                $selectedArea = $this->getSelectedArea($sender);
+                if(!$selectedArea->isValid()){
+                    $sender->sendMessage(TextFormat::RED . "[WorldEditor] 먼저 영역을 설정해야 합니다");
                     break;
                 }
-                $output = "블럭을 되돌리는 중이에요";
-                $this->undoBlock($this->getMinPos($sender), $this->getMaxPos($sender));
+                $sender->sendMessage(TextFormat::YELLOW . "[WorldEditor] 블럭을 변경하기 이전으로 되돌리기를 시작했습니다");
+                $this->getScheduler()->scheduleTask(new UndoBlockTask(
+                    $selectedArea->getMinPosition(),
+                    $selectedArea->getMaxPosition(),
+                    $selectedArea->getWorld(),
+                    $sender
+                ));
                 break;
             case "/redo":
-                if(!$this->canEditBlock($sender)){
-                    $output = "지역을 올바르게 설정해주세요";
+                $selectedArea = $this->getSelectedArea($sender);
+                if(!$selectedArea->isValid()){
+                    $sender->sendMessage(TextFormat::RED . "[WorldEditor] 먼저 영역을 설정해야 합니다");
                     break;
                 }
-                $output = "블럭을 되돌리는 중이에요";
-                $this->redoBlock($this->getMinPos($sender), $this->getMaxPos($sender));
+                $sender->sendMessage(TextFormat::YELLOW . "[WorldEditor] 변경했던 블럭으로 다시 되돌리기를 시작했습니다");
+                $this->getScheduler()->scheduleTask(new RedoBlockTask(
+                    $selectedArea->getMinPosition(),
+                    $selectedArea->getMaxPosition(),
+                    $selectedArea->getWorld(),
+                    $sender
+                ));
                 break;
             case "/cut":
-                if(!$this->canEditBlock($sender)){
-                    $output = "지역을 올바르게 설정해주세요";
+                $selectedArea = $this->getSelectedArea($sender);
+                if(!$selectedArea->isValid()){
+                    $sender->sendMessage(TextFormat::RED . "[WorldEditor] 먼저 영역을 설정해야 합니다");
                     break;
                 }
-                $output = "블럭을 잘라내는 중이에요";
                 $this->copy[$sender->getName()] = [];
-                $this->cutBlock($this->getMinPos($sender), $this->getMaxPos($sender), $sender);
+                $sender->sendMessage(TextFormat::YELLOW . "[WorldEditor] 블럭 잘라내기를 시작했습니다");
+                $this->getScheduler()->scheduleTask(new CutBlockTask(
+                    $sender,
+                    $selectedArea->getMinPosition(),
+                    $selectedArea->getMaxPosition(),
+                    $selectedArea->getWorld()
+                ));
                 break;
             case "/copy":
-                if(!$this->canEditBlock($sender)){
-                    $output = "지역을 올바르게 설정해주세요";
+                $selectedArea = $this->getSelectedArea($sender);
+                if(!$selectedArea->isValid()){
+                    $sender->sendMessage(TextFormat::RED . "[WorldEditor] 먼저 영역을 설정해야 합니다");
                     break;
                 }
-                $output = "블럭을 복사중이에요";
                 $this->copy[$sender->getName()] = [];
-                $this->copyBlock($this->getMinPos($sender), $this->getMaxPos($sender), $sender);
+                $sender->sendMessage(TextFormat::YELLOW . "[WorldEditor] 블럭 복사를 시작했습니다");
+                $this->getScheduler()->scheduleTask(new CopyBlockTask(
+                    $sender,
+                    $selectedArea->getMinPosition(),
+                    $selectedArea->getMaxPosition(),
+                    $selectedArea->getWorld()
+                ));
                 break;
             case "/paste":
-                $output = "블럭 붙여넣기를 시작했어요";
-                $this->pasteBlock($sender);
+                $selectedArea = $this->getSelectedArea($sender);
+                if($selectedArea->getWorld() === null || $selectedArea->getMaxPosition()->y < 0){
+                    $sender->sendMessage(TextFormat::RED . "[WorldEditor] 먼저 영역을 설정해야 합니다");
+                    break;
+                }
+                $pos = $selectedArea->getFirstPosition();
+                if($pos->y < 0){
+                    $pos = $selectedArea->getSecondPosition();
+                }
+                $sender->sendMessage(TextFormat::YELLOW . "[WorldEditor] 블럭 붙여넣기를 시작했습니다");
+                $this->getScheduler()->scheduleTask(new PasteBlockTask($pos, $selectedArea->getWorld(), $this->copy[$sender->getName()], $sender->getHorizontalFacing(), $sender));
                 break;
             case "/sphere":
-                //TODO: 구 준비중
+                if(count($sub) < 2){
+                    $sender->sendMessage("사용법: //shpere <blockId> <반지름> [구 채우기(true|false)>]");
+                    break;
+                }
+                $selectedArea = $this->getSelectedArea($sender);
+                if($selectedArea->getWorld() === null || $selectedArea->getMaxPosition()->y < 0){
+                    $sender->sendMessage(TextFormat::RED . "[WorldEditor] 먼저 영역을 설정해야 합니다");
+                    break;
+                }
+                $block = $this->getStringToBlock($sub[0]);
+                if($block === null){
+                    $sender->sendMessage(TextFormat::RED . "[WorldEditor] 존재하지 않는 블럭입니다 (blockId: {$sub[0]})");
+                    break;
+                }
+                $radius = $sub[1];
+                if(!is_numeric($radius)){
+                    $sender->sendMessage(TextFormat::RED . "[WorldEditor] 구의 반지름은 숫자여야 합니다");
+                    break;
+                }
+                $pos = $selectedArea->getFirstPosition();
+                if($pos->y < 0){
+                    $pos = $selectedArea->getSecondPosition();
+                }
+                $sender->sendMessage(TextFormat::YELLOW . "[WorldEditor] 구 생성을 시작했습니다");
+                $this->getScheduler()->scheduleTask(new MakeSphereTask($pos, $selectedArea->getWorld(), $block, (int) $radius, ($sub[2] ?? "") !== "false", $sender));
                 break;
-        }
-        if(isset($output)){
-            $sender->sendMessage("[WorldEditor]$output");
         }
         return true;
     }

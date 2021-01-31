@@ -1,3 +1,3 @@
-tool: IRON_HOE
+wand: WOODEN_AXE
 update-tick: 2
-limit-block: 200
+block-per-tick: 200
