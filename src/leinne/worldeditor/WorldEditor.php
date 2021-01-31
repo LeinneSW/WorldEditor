@@ -183,7 +183,7 @@ class WorldEditor extends PluginBase implements Listener{
 
     public function onCommand(CommandSender $sender, Command $cmd, string $label, array $sub) : bool{
         if(!($sender instanceof Player)){
-            $sender->sendMessage(TextFormat::RED . "[WorldEditor] 게임 내에서 사용해 주세요");
+            $sender->sendMessage(TextFormat::RED . "[WorldEditor] 게임 내에서만 사용이 가능합니다");
             return true;
         }
 
@@ -209,7 +209,7 @@ class WorldEditor extends PluginBase implements Listener{
                 }
                 $selectedArea = $this->getSelectedArea($sender);
                 if(!$selectedArea->isValid()){
-                    $sender->sendMessage(TextFormat::RED . "[WorldEditor] 먼저 영역을 설정해 주세요");
+                    $sender->sendMessage(TextFormat::RED . "[WorldEditor] 먼저 영역을 설정해야 합니다");
                     break;
                 }
                 $block = $this->getStringToBlock($sub[0]);
