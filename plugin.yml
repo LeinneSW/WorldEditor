@@ -43,6 +43,9 @@ commands:
   /cut:
     description: "선택한 영역을 잘라냅니다"
     permission: worldeditor.command.cutblock
+  /up:
+    description: "위로 블럭을 쌓아 올라갑니다"
+    permission: worldeditor.command.up
 permissions:
   worldeditor.command:
     default: op
@@ -65,4 +68,8 @@ permissions:
   worldeditor.command.pasteblock:
     default: op
   worldeditor.command.cutblock:
+    default: op
+  worldeditor.command.up:
+    default: op
+  worldeditor.compass:
     default: op

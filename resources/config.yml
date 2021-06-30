@@ -1,3 +1,4 @@
 wand: WOODEN_AXE
 update-tick: 2
 block-per-tick: 200
+distance: 10
