@@ -21,6 +21,7 @@ use pocketmine\command\CommandSender;
 use pocketmine\event\block\BlockBreakEvent;
 use pocketmine\event\Listener;
 use pocketmine\event\player\PlayerInteractEvent;
+use pocketmine\event\player\PlayerItemUseEvent;
 use pocketmine\item\Item;
 use pocketmine\item\LegacyStringToItemParser;
 use pocketmine\item\VanillaItems;
@@ -35,9 +36,9 @@ use pocketmine\world\Position;
 class WorldEditor extends PluginBase implements Listener{
     use SingletonTrait;
 
-    private Item $wand;
+    private Item $wand, $compass;
 
-    private int $tick = 2, $blockPerTick = 200;
+    private int $tick = 2, $blockPerTick = 200, $distance = 1;
 
     /** @var SelectedArea[] */
     private array $selectedArea = [];
@@ -61,11 +62,16 @@ class WorldEditor extends PluginBase implements Listener{
             $this->blockPerTick = max((int) $blockPerTick, 1);
         }
 
+        $distance = $data["distance"] ?? 1;
+        $this->distance = max((int) $distance, 1);
+
         try{
             $this->wand = LegacyStringToItemParser::getInstance()->parse($data["wand"] ?? $data["tool"] ?? "");
         }catch(\Exception $e){
             $this->wand = VanillaItems::WOODEN_AXE();
         }
+
+        $this->compass = VanillaItems::COMPASS();
 
         $this->getServer()->getPluginManager()->registerEvents($this, $this);
     }
@@ -161,13 +167,22 @@ class WorldEditor extends PluginBase implements Listener{
         $item = $ev->getItem();
         $block = $ev->getBlock();
         $player = $ev->getPlayer();
-        if($player->hasPermission("worldeditor.command.setpos") && $ev->getItem()->equals($this->wand, false, false)){
-            $ev->cancel();
-            $selectedArea = $this->getSelectedArea($player);
-            $player->sendMessage($ev->getAction() === PlayerInteractEvent::LEFT_CLICK_BLOCK ?
-                $selectedArea->setFirstPosition($block->getPos(), $item) :
-                $selectedArea->setSecondPosition($block->getPos(), $item)
-            );
+        if($player->hasPermission("worldeditor.command.setpos")) {
+            if ($ev->getItem()->equals($this->wand, false, false)) {
+                $ev->cancel();
+                $selectedArea = $this->getSelectedArea($player);
+                $player->sendMessage($ev->getAction() === PlayerInteractEvent::LEFT_CLICK_BLOCK ?
+                    $selectedArea->setFirstPosition($block->getPos(), $item) :
+                    $selectedArea->setSecondPosition($block->getPos(), $item)
+                );
+            }
+        }elseif($player->hasPermission("worldeditor.compass")) {
+            if ($ev->getItem()->equals($this->compass, false, false)) {
+                $ev->cancel();
+                $front = $player->getTargetBlock($this->distance)->getPos();
+                $front->y = $player->getWorld()->getHighestBlockAt($front->x, $front->z) + 1;
+                $player->teleport($front);
+            }
         }
     }
 
@@ -175,9 +190,24 @@ class WorldEditor extends PluginBase implements Listener{
     public function onBlockBreakEvent(BlockBreakEvent $ev) : void{
         $block = $ev->getBlock();
         $player = $ev->getPlayer();
-        if($player->hasPermission("worldeditor.command.setpos") && $ev->getItem()->equals($this->wand, false, false)){
-            $ev->cancel();
-            $player->sendMessage($this->getSelectedArea($player)->setFirstPosition($block->getPos()));
+        if($player->hasPermission("worldeditor.command.setpos")){
+            if ($ev->getItem()->equals($this->wand, false, false)) {
+                $ev->cancel();
+                $player->sendMessage($this->getSelectedArea($player)->setFirstPosition($block->getPos()));
+            }
+        }
+    }
+
+    /** @priority MONITOR */
+    public function onPlayerItemUseEvent(PlayerItemUseEvent $ev): void{
+        $player = $ev->getPlayer();
+        if($player->hasPermission("worldeditor.compass")) {
+            if($ev->getItem()->equals($this->compass, false, false)){
+                $ev->cancel();
+                $front = $player->getTargetBlock($this->distance)->getPos();
+                $front->y = $player->getWorld()->getHighestBlockAt($front->x, $front->z) + 1;
+                $player->teleport($front);
+            }
         }
     }
 
@@ -350,6 +380,18 @@ class WorldEditor extends PluginBase implements Listener{
                 }
                 $sender->sendMessage(TextFormat::YELLOW . "[WorldEditor] 구 생성을 시작했습니다");
                 $this->getScheduler()->scheduleTask(new MakeSphereTask($pos, $selectedArea->getWorld(), $block, (int) $radius, ($sub[2] ?? "") !== "false", $sender));
+                break;
+            case "/up":
+                $amount = array_shift($sub) ?? "";
+                if(trim($amount) === "" or !is_numeric($amount)){
+                    $sender->sendMessage(TextFormat::RED . "[WorldEditor] //up <값>");
+                    break;
+                }
+                $calculateY = min(255, ($sender->getPosition()->getY() + $amount));
+                $pos = new Position($sender->getPosition()->getX(), $calculateY, $sender->getPosition()->getZ(), $sender->getWorld());
+                $sender->getWorld()->setBlock($pos, VanillaBlocks::GLASS());
+                $sender->teleport($pos->add(0, 0.5, 0));
+                $sender->sendMessage(TextFormat::YELLOW . "[WorldEditor] 위로 올라갔습니다");
                 break;
         }
         return true;
